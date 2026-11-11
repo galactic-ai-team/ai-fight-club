@@ -60,7 +60,8 @@ function scoreAction(obs: Observation, action: Action): number {
   }
 
   if (action.move === towardDir(obs)) {
-    const preferred = lowHealth ? 90 : 65;
+    // Lumi tune: close to heavy reach so Ledger can actually land hits (was 90 : 65).
+    const preferred = HEAVY_REACH;
     if (d > preferred) score += 45;
     else score -= 15;
   }

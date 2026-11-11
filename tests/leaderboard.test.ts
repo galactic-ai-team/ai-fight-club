@@ -78,11 +78,11 @@ describe("applyResult", () => {
       match({ seed: 3, p1: "zoner", p2: "rusher", winner: "p1" }),
     ];
     const a = fixture.reduce(
-      applyResult,
+      (t, m) => applyResult(t, m),
       initLeaderboard(["rusher", "random", "zoner"]),
     );
     const b = fixture.reduce(
-      applyResult,
+      (t, m) => applyResult(t, m),
       initLeaderboard(["rusher", "random", "zoner"]),
     );
     expect(a).toEqual(b);
@@ -134,9 +134,11 @@ describe("streaks", () => {
     expect(t.entries.find((e) => e.id === "a")!.streak).toBe(2);
     t = applyResult(t, match({ p1: "a", p2: "b", winner: "p2" }));
     expect(t.entries.find((e) => e.id === "a")!.streak).toBe(-1);
-    expect(t.entries.find((e) => e.id === "b")!.streak).toBe(-2);
+    // b was on L2 and just won, so its streak resets to W1.
+    expect(t.entries.find((e) => e.id === "b")!.streak).toBe(1);
     t = applyResult(t, match({ p1: "a", p2: "b", winner: "p2" }));
-    expect(t.entries.find((e) => e.id === "b")!.streak).toBe(-1);
+    expect(t.entries.find((e) => e.id === "a")!.streak).toBe(-2);
+    expect(t.entries.find((e) => e.id === "b")!.streak).toBe(2);
   });
 
   it("a draw resets streak to 0", () => {
