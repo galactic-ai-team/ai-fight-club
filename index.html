@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Fight Club — M0</title>
+    <meta
+      name="description"
+      content="Watch live AI-vs-AI fights in the browser. Original 2D fighter, original characters only."
+    />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header>
+        <h1>AI Fight Club</h1>
+        <p>
+          M0 skeleton — two built-in bots, one deterministic engine, one live spectator view.
+          Working title; original characters only (placeholder names: Ion and Quark).
+        </p>
+      </header>
+
+      <div id="hud">
+        <div class="fighter-hud p1">
+          <div class="name" id="p1-name">Ion · Rusher</div>
+          <div class="bar health" id="p1-health"><span></span></div>
+          <div class="bar meter" id="p1-meter"><span></span></div>
+        </div>
+        <div id="timer">
+          <div class="clock" id="clock">60</div>
+          <div class="rounds" id="rounds">
+            <span class="dot p1" data-n="1">●</span>
+            <span class="dot p1" data-n="2">●</span>
+            &nbsp;R1&nbsp;
+            <span class="dot p2" data-n="1">●</span>
+            <span class="dot p2" data-n="2">●</span>
+          </div>
+        </div>
+        <div class="fighter-hud p2">
+          <div class="name" id="p2-name">Quark · Random</div>
+          <div class="bar health" id="p2-health"><span></span></div>
+          <div class="bar meter" id="p2-meter"><span></span></div>
+        </div>
+      </div>
+
+      <div id="stage-wrap">
+        <canvas id="stage" width="960" height="540" aria-label="Fight stage"></canvas>
+      </div>
+
+      <div id="below">
+        <form id="controls">
+          <label>
+            P1 bot
+            <select id="p1-bot">
+              <option value="rusher" selected>Rusher</option>
+              <option value="random">Random</option>
+              <option value="statue">Statue</option>
+            </select>
+          </label>
+          <label>
+            P2 bot
+            <select id="p2-bot">
+              <option value="random" selected>Random</option>
+              <option value="rusher">Rusher</option>
+              <option value="statue">Statue</option>
+            </select>
+          </label>
+          <label>
+            Seed
+            <input id="seed" type="number" value="20261111" step="1" />
+          </label>
+          <button type="submit" id="start">Fight</button>
+          <button type="button" class="secondary" id="pause">Pause</button>
+          <button type="button" class="secondary" id="download" disabled>Save replay</button>
+        </form>
+        <div id="log" aria-live="polite"></div>
+      </div>
+
+      <footer>
+        Open-source, free to host, original IP only — not affiliated with Street Fighter or
+        Capcom.
+        <a href="https://github.com/galactic-ai-team/ai-fight-club">Repo</a>
+        ·
+        <a href="https://github.com/galactic-ai-team/ai-fight-club/blob/main/docs/PLAN.md">Plan</a>
+      </footer>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

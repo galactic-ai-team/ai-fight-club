@@ -1,0 +1,161 @@
+/* Original arcade HUD. No third-party typefaces required. */
+:root {
+  --bg: #070a14;
+  --panel: #12182b;
+  --ink: #e8eeff;
+  --muted: #93a0c2;
+  --p1: #4be3ff;
+  --p2: #ffb347;
+  --accent: #c07bff;
+  --danger: #ff5d73;
+  --ok: #5dffb0;
+  --line: #2a3354;
+}
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  min-height: 100%;
+}
+
+#app {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 16px 16px 32px;
+}
+
+header h1 {
+  margin: 0 0 4px;
+  font-size: 22px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+header p {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+#hud {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.fighter-hud { display: flex; flex-direction: column; gap: 4px; }
+.fighter-hud.p2 { text-align: right; }
+.fighter-hud .name { font-weight: 700; }
+.fighter-hud.p1 .name { color: var(--p1); }
+.fighter-hud.p2 .name { color: var(--p2); }
+
+.bar {
+  height: 16px;
+  background: #1b2238;
+  border: 1px solid var(--line);
+  position: relative;
+  overflow: hidden;
+}
+.bar > span {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: var(--ok);
+  transition: width 80ms linear;
+}
+.bar.meter > span { background: var(--accent); }
+.fighter-hud.p2 .bar > span { margin-left: auto; }
+
+#timer {
+  text-align: center;
+  min-width: 88px;
+}
+#timer .clock {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1;
+}
+#timer .rounds { font-size: 14px; color: var(--muted); letter-spacing: 0.2em; }
+#timer .dot { color: #3a4468; }
+#timer .dot.on.p1 { color: var(--p1); }
+#timer .dot.on.p2 { color: var(--p2); }
+
+#stage-wrap {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+#stage { display: block; width: 100%; height: auto; }
+
+#below {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+#controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: end;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+}
+label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--muted); }
+select, input[type="number"] {
+  background: #0d1322;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font: inherit;
+}
+button {
+  background: var(--accent);
+  color: #14081f;
+  border: 0;
+  border-radius: 4px;
+  padding: 8px 14px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+button.secondary { background: #2a3354; color: var(--ink); }
+button:disabled { opacity: 0.5; cursor: default; }
+
+#log {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  height: 180px;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+#log .line { margin: 0 0 4px; }
+#log .line.hit { color: var(--ink); }
+#log .line.ko, #log .line.match_end { color: var(--danger); font-weight: 700; }
+
+footer {
+  margin-top: 18px;
+  color: var(--muted);
+  font-size: 12px;
+}
+footer a { color: var(--p1); }
+
+@media (max-width: 700px) {
+  #below { grid-template-columns: 1fr; }
+  header h1 { font-size: 18px; }
+  #timer .clock { font-size: 24px; }
+}
