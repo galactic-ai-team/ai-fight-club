@@ -1,5 +1,10 @@
 import { createBot, type Bot } from "./bots/index.ts";
-import { commentOn } from "./commentary/index.ts";
+import {
+  commentOnEvents,
+  matchStartLine,
+  type CommentaryContext,
+} from "./commentary/index.ts";
+import { momentLine, roundIntroLine, type OverlayInput } from "./commentary/overlay.ts";
 import {
   TICK_MS,
   appendInput,
@@ -14,6 +19,7 @@ import {
 import { renderMatch, resizeCanvas } from "./render/canvas.ts";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#stage")!;
+const momentEl = document.querySelector<HTMLDivElement>("#moment")!;
 const logEl = document.querySelector<HTMLDivElement>("#log")!;
 const clockEl = document.querySelector<HTMLDivElement>("#clock")!;
 const p1Name = document.querySelector<HTMLDivElement>("#p1-name")!;
@@ -46,6 +52,54 @@ let last = 0;
 
 function resetLog(): void {
   logEl.innerHTML = "";
+}
+
+/** Public match state the commentary / overlay read. No hidden randomness. */
+function commentaryContext(state: MatchState): CommentaryContext {
+  return {
+    p1HealthFrac: state.p1.health / state.p1.maxHealth,
+    p2HealthFrac: state.p2.health / state.p2.maxHealth,
+    p1Wins: state.p1Wins,
+    p2Wins: state.p2Wins,
+    round: state.round.number,
+    timeLeftSeconds: Math.ceil(state.round.timeLeftTicks / 60),
+  };
+}
+
+function overlayInput(state: MatchState): OverlayInput {
+  return {
+    phase: state.phase,
+    round: state.round.number,
+    p1Name: state.p1.character,
+    p2Name: state.p2.character,
+    p1HealthFrac: state.p1.health / state.p1.maxHealth,
+    p2HealthFrac: state.p2.health / state.p2.maxHealth,
+    p1Wins: state.p1Wins,
+    p2Wins: state.p2Wins,
+  };
+}
+
+/**
+ * Overlay callout over the stage (text only — the canvas banner in
+ * src/render/canvas.ts still owns round / match results). Shows the round
+ * intro for the first 90 ticks of a round, a low-health callout mid-fight,
+ * and nothing during round_end / match_end.
+ */
+function updateMoment(): void {
+  if (!match) return;
+  const input = overlayInput(match);
+  const moment = momentLine(input);
+  if (moment) {
+    momentEl.textContent = moment.text;
+    momentEl.classList.toggle("danger", moment.tone === "danger");
+    return;
+  }
+  if (match.phase === "fight" && match.round.tick <= 90) {
+    momentEl.textContent = roundIntroLine(input);
+    momentEl.classList.remove("danger");
+    return;
+  }
+  momentEl.textContent = "";
 }
 
 function logLine(text: string, kind: string): void {
@@ -95,7 +149,14 @@ function startMatch(): void {
   p1Name.textContent = `${match.p1.character} · ${p1.name}`;
   p2Name.textContent = `${match.p2.character} · ${p2.name}`;
   resetLog();
-  logLine(`Match start. Seed ${seed}. ${p1.name} vs ${p2.name}.`, "start");
+  logLine(
+    matchStartLine(
+      { p1: match.p1.character, p2: match.p2.character },
+      { seed, p1Bot: p1.name, p2Bot: p2.name },
+    ),
+    "start",
+  );
+  updateMoment();
   playing = true;
   acc = 0;
   last = performance.now();
@@ -110,9 +171,10 @@ function tick(): void {
   appendInput(replay, a1, a2);
   stepMatch(match, a1, a2);
   const names = { p1: match.p1.character, p2: match.p2.character };
-  for (const ev of match.lastEvents) {
-    logLine(commentOn(ev, names), ev.type);
+  for (const line of commentOnEvents(match.lastEvents, names, commentaryContext(match))) {
+    logLine(line.text, line.kind);
   }
+  updateMoment();
   if (match.over && replay) {
     replay.result = {
       winner: match.matchWinner,
