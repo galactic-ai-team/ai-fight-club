@@ -1,0 +1,8 @@
+[
+  { "seed": 1, "p1": "rusher", "p2": "random", "winner": "p1", "p1Wins": 2, "p2Wins": 0 },
+  { "seed": 2, "p1": "random", "p2": "rusher", "winner": "p2", "p1Wins": 1, "p2Wins": 2 },
+  { "seed": 3, "p1": "rusher", "p2": "zoner", "winner": "p1", "p1Wins": 2, "p2Wins": 0 },
+  { "seed": 4, "p1": "zoner", "p2": "rusher", "winner": "p2", "p1Wins": 1, "p2Wins": 2 },
+  { "seed": 5, "p1": "turtler", "p2": "utility", "winner": "p1", "p1Wins": 2, "p2Wins": 1 },
+  { "seed": 6, "p1": "utility", "p2": "turtler", "winner": "p2", "p1Wins": 0, "p2Wins": 2 }
+]

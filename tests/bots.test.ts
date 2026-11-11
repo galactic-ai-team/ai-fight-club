@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { createBot, createRandomBot, createRusherBot, createStatueBot } from "../src/bots/index.ts";
+import {
+  createBot,
+  createRandomBot,
+  createRusherBot,
+  createStatueBot,
+  createTurtlerBot,
+  createUtilityBot,
+  createZonerBot,
+} from "../src/bots/index.ts";
 import { ATTACKS } from "../src/engine/attacks.ts";
 import { runMatch } from "../src/engine/run.ts";
 import { createMatch, stepMatch } from "../src/engine/sim.ts";
@@ -30,24 +38,87 @@ describe("builtin bots", () => {
     // Place them in light range.
     s.p1.x = s.p2.x - (ATTACKS.light.range + 20);
     const close = bot.act(observe(s, "p1"));
-    expect(close.attack === "light" || close.attack === "heavy" || close.move === "right").toBe(true);
+    expect(
+      close.attack === "light" ||
+        close.attack === "heavy" ||
+        close.move === "right",
+    ).toBe(true);
   });
 
   it("rusher knocks out a statue in one match", () => {
-    const { state } = runMatch(createRusherBot(), createStatueBot(), { seed: 21 });
+    const { state } = runMatch(createRusherBot(), createStatueBot(), {
+      seed: 21,
+    });
     expect(state.over).toBe(true);
     expect(state.matchWinner).toBe("p1");
     expect(state.p1Wins).toBeGreaterThanOrEqual(2);
   });
 
   it("rusher beats random on a fixed seed set more often than not", () => {
-    const seeds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+    const seeds = [
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+    ];
     let wins = 0;
     for (const seed of seeds) {
       const { state } = runMatch(createRusherBot(), createRandomBot(), { seed });
       if (state.matchWinner === "p1") wins += 1;
     }
     expect(wins).toBeGreaterThanOrEqual(14);
+  });
+});
+
+describe("new bots", () => {
+  const newBots = [
+    { id: "zoner", create: createZonerBot },
+    { id: "turtler", create: createTurtlerBot },
+    { id: "utility", create: createUtilityBot },
+  ] as const;
+
+  for (const { id, create } of newBots) {
+    it(`${id} is deterministic for a given start seed`, () => {
+      const a = create();
+      const b = create();
+      a.start?.({ side: "p1", seed: 77, opponentId: "rusher" });
+      b.start?.({ side: "p1", seed: 77, opponentId: "rusher" });
+      const s = createMatch({ seed: 77 });
+      const obs = observe(s, "p1");
+      for (let i = 0; i < 100; i++) {
+        expect(a.act(obs)).toEqual(b.act(obs));
+      }
+    });
+  }
+
+  it("at least one new bot beats random on the fixed 20-seed set", () => {
+    const seeds = [
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+    ];
+    const bots = [createZonerBot, createTurtlerBot, createUtilityBot];
+
+    let best = 0;
+    for (const make of bots) {
+      let wins = 0;
+      for (const seed of seeds) {
+        const { state } = runMatch(make(), createRandomBot(), { seed });
+        if (state.matchWinner === "p1") wins += 1;
+      }
+      best = Math.max(best, wins);
+    }
+
+    expect(best).toBeGreaterThanOrEqual(14);
+  });
+
+  it("rusher and turtler can finish a match without throwing", () => {
+    const { state } = runMatch(createRusherBot(), createTurtlerBot(), {
+      seed: 5,
+    });
+    expect(state.over).toBe(true);
+  });
+
+  it("zoner and utility can finish a match without throwing", () => {
+    const { state } = runMatch(createZonerBot(), createUtilityBot(), {
+      seed: 7,
+    });
+    expect(state.over).toBe(true);
   });
 });
 
