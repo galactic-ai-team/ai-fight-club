@@ -5,7 +5,9 @@ import {
   type Leaderboard,
   type LeaderboardEntry,
 } from "../ladder/leaderboard.ts";
+import { applyResult } from "../ladder/leaderboard.ts";
 import { playSeededMatches } from "../ladder/play.ts";
+import type { LadderMatch } from "../ladder/types.ts";
 
 export const STORAGE_KEY = "afc:leaderboard:v1";
 export const NEXT_SEED_KEY = "afc:leaderboard:nextSeed";
@@ -14,6 +16,8 @@ const STYLE_ID = "afc-leaderboard-style";
 export interface LeaderboardHandle {
   getTable(): Leaderboard;
   runMatches(n: number): Leaderboard;
+  /** Apply one finished spectator match (Lumi: hook for "update after each match"). */
+  recordMatch(match: LadderMatch): Leaderboard;
   reset(): Leaderboard;
 }
 
@@ -198,6 +202,10 @@ export function mountLeaderboard(root: HTMLElement): LeaderboardHandle {
       });
       writeNextSeed(nextSeed);
       return commit(next);
+    },
+    recordMatch(match: LadderMatch): Leaderboard {
+      if (match.p1 === match.p2) return table; // mirror matches are not ranked
+      return commit(applyResult(table, match));
     },
     reset(): Leaderboard {
       writeNextSeed(1);

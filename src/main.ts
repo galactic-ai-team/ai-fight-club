@@ -124,6 +124,16 @@ function tick(): void {
     playing = false;
     downloadBtn.disabled = false;
     logLine(`Match over in ${match.tick} ticks.`, "match_end");
+    if (match.matchWinner === "p1" || match.matchWinner === "p2") {
+      leaderboard?.recordMatch({
+        seed: replay.seed,
+        p1: bots.p1.id,
+        p2: bots.p2.id,
+        winner: match.matchWinner,
+        p1Wins: match.p1Wins,
+        p2Wins: match.p2Wins,
+      });
+    }
   }
 }
 
@@ -175,5 +185,5 @@ downloadBtn.addEventListener("click", () => {
 match = createMatch({ seed: Number(seedInput.value) || 1 });
 renderHud(match);
 renderMatch(ctx, match);
+const leaderboard = bootLeaderboard();
 requestAnimationFrame(frame);
-bootLeaderboard();

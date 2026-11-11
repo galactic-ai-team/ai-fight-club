@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { parseReplay, playback, serializeReplay } from "../src/engine/replay.ts";
 import { runMatch } from "../src/engine/run.ts";
 import { createBot } from "../src/bots/index.ts";
 import {
@@ -209,5 +210,46 @@ describe("pickMatchup and playSeededMatches", () => {
     expect(a.matches).toEqual(b.matches);
     expect(a.table).toEqual(b.table);
     expect(a.nextSeed).toBe(7);
+  });
+});
+
+// Lumi: spec gaps from docs/team/dee.md (exact Elo math on a fixture, rebuild from replays).
+describe("spec checks (added by Lumi)", () => {
+  it("Elo math matches hand-computed values (K=32, start 1500)", () => {
+    let t = initLeaderboard(["a", "b"]);
+    t = applyResult(t, match({ p1: "a", p2: "b", winner: "p1" }));
+    const a1 = t.entries.find((e) => e.id === "a")!;
+    expect(a1.rating).toBeCloseTo(1516, 10);
+    expect(a1.lastDelta).toBeCloseTo(16, 10);
+    // Second match: b (1484) beats a (1516). E_b = 1 / (1 + 10^((1516-1484)/400)).
+    t = applyResult(t, match({ p1: "a", p2: "b", winner: "p2" }));
+    const eb = 1 / (1 + 10 ** (32 / 400));
+    const b2 = t.entries.find((e) => e.id === "b")!;
+    expect(b2.lastDelta).toBeCloseTo(32 * (1 - eb), 10);
+    expect(b2.rating).toBeCloseTo(1484 + 32 * (1 - eb), 10);
+  });
+
+  it("rebuilding from saved replays gives the same table as the live run", () => {
+    const ids = ["rusher", "turtler", "utility", "zoner"];
+    const live = playSeededMatches(initLeaderboard(ids), { count: 8, startSeed: 1 });
+    // Save each match as a replay file (JSON), then rebuild purely from the files.
+    const files = live.matches.map((m) =>
+      serializeReplay(runMatch(createBot(m.p1), createBot(m.p2), { seed: m.seed }).replay),
+    );
+    const rebuilt = files.reduce((t, json) => {
+      const r = parseReplay(json);
+      const state = playback(r);
+      const winner = state.matchWinner;
+      if (winner !== "p1" && winner !== "p2") return t;
+      return applyResult(t, {
+        seed: r.seed,
+        p1: r.p1.botId,
+        p2: r.p2.botId,
+        winner,
+        p1Wins: state.p1Wins,
+        p2Wins: state.p2Wins,
+      });
+    }, initLeaderboard(ids));
+    expect(rebuilt).toEqual(live.table);
   });
 });

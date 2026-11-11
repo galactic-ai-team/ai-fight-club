@@ -97,3 +97,9 @@ Table: .afc-lb table
 
 Body cell classes: .afc-lb-rank, .afc-lb-id, .afc-lb-rating,
 .afc-lb-record, .afc-lb-streak, .afc-lb-delta, .afc-lb-last
+
+## Spectator hook
+
+`bootLeaderboard()` returns a handle. `src/main.ts` calls `handle.recordMatch(...)` when a
+spectator match ends, so the table updates (and persists) after every match watched in the
+browser, not only via Run N. Mirror matches (same bot id on both sides) are not ranked.
