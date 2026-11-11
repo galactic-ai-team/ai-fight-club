@@ -12,6 +12,7 @@ import {
   type Replay,
 } from "./engine/index.ts";
 import { renderMatch, resizeCanvas } from "./render/canvas.ts";
+import { bootLeaderboard } from "./ui/leaderboard.ts";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#stage")!;
 const logEl = document.querySelector<HTMLDivElement>("#log")!;
@@ -175,3 +176,4 @@ match = createMatch({ seed: Number(seedInput.value) || 1 });
 renderHud(match);
 renderMatch(ctx, match);
 requestAnimationFrame(frame);
+bootLeaderboard();
