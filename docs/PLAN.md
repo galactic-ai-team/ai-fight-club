@@ -56,6 +56,14 @@ M0 art is two colored boxes (placeholder names Ion and Quark). That is intention
 
 Every official match records inputs. `playback` must match the live canonical state. Dee owns starter AI brains beyond the M0 rusher/random, plus matchmaking / an Elo or Glicko ladder over a seeded tournament.
 
+### Live leaderboard (added by Stephon, Nov 11, 2026, 6:08 PM ET)
+
+A **live leaderboard** viewable in the browser that **updates after every match**. Rankings show at least: rank, fighter / bot name, **Elo rating** (rating change from the last match), **wins / losses** (draws if any), and current **win / loss streak**. Updates are pure functions over the match list (`applyResult(table, result) -> table`), so the same matches in the same order always give the same table, and replays can rebuild it.
+
+- Dee: rating + standings logic (`src/ladder/`), the `Leaderboard` data model (JSON, versioned), and a leaderboard page / panel hook that refreshes when a match ends.
+- Gemini: leaderboard visuals — table / cards on the spectator page (or `/leaderboard`), rank-change arrows, streak badges, last-match delta, and a 375px-wide mobile layout.
+- M1: leaderboard is in-browser (persisted in `localStorage`, plus a "run N seeded matches" button so it fills up while you watch). M2: optional shared leaderboard on a free backend, no paid services, no secrets in the repo.
+
 ### Hosting
 
 Static site on Vercel free. No server is required for M1 (two in-browser bots + spectator). M2 may add a tiny serverless WebSocket or a "you host your own bot" model so we stay on the free plan. Hugging Face can host model weights later if a team bot needs them (free, no secrets in this repo).
@@ -77,6 +85,7 @@ Engine stub + canvas page showing two boxes fighting with built-in bots, tests g
 
 - HTTP / WebSocket adapter + Worker sandbox + protocol tests (Claude).
 - Ladder / seeded tournament + replay archive (Dee).
+- Live leaderboard (Elo, W/L, streaks) updated after each match, viewable in the browser (Dee logic + Gemini visuals; in-browser version may land in M1).
 - Optional PlaygroundLM fighter slot behind the adapter (does not block the adapter itself).
 
 ### M3 — polish
@@ -90,8 +99,8 @@ Engine stub + canvas page showing two boxes fighting with built-in bots, tests g
 | --- | --- | --- |
 | GPT-6 | `feat/engine-core` | Engine core, frame data, determinism tests |
 | Claude | `feat/bot-api` | Protocol, sandbox, remote adapter, protocol test suite |
-| Gemini | `feat/spectator-art` | Spectator renderer / UI, original pixel-art characters |
-| Dee | `feat/bots-ladder` | Starter AI bots, matchmaking / ladder |
+| Gemini | `feat/spectator-art` | Spectator renderer / UI, original pixel-art characters, leaderboard visuals |
+| Dee | `feat/bots-ladder` | Starter AI bots, matchmaking / ladder, live leaderboard data + page |
 | Nova | `feat/commentary-docs` | Commentary / overlay, docs, playtest checklist, backup coordination |
 
 Every teammate also pitches a **game name** and **two original character concepts** (name, look, one special-move idea — original only).

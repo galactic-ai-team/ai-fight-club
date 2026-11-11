@@ -33,6 +33,15 @@ Do not change engine rules or bot protocol except for purely visual hooks (for e
 - Mobile: usable at **375px wide**. Health bars, timer, and the Fight button must remain reachable.
 - No paid fonts, no paid stock, no external account required to build.
 
+## New: leaderboard visuals (Stephon, Nov 11, 6:08 PM ET)
+
+Stephon wants a **live leaderboard in the browser that updates after each match** (Elo rating, wins / losses, streaks). Dee owns the ranking logic and JSON shape (`src/ladder/leaderboard.ts`); you own how it looks:
+
+- A leaderboard panel on the spectator page and/or a `/leaderboard` view: rank, fighter portrait / color chip, name, Elo, last-match delta (+/-), W-L, streak badge (e.g. hot streak W3+).
+- Animate rank changes after a match (driven by the table update, not wall-clock, so it is reproducible), highlight the two fighters who just played.
+- Readable at **375px wide**; same arcade style as the HUD; original art and free fonts only.
+- Render from the table JSON only (no engine changes). Until Dee's module lands, mock it with a small fixture and keep the field names in sync with Dee.
+
 ## Acceptance tests
 
 - [ ] `npm run typecheck && npm test && npm run build` green (add a render unit test if you can do it without a real browser; a documented manual check is OK for canvas frames).
@@ -41,6 +50,7 @@ Do not change engine rules or bot protocol except for purely visual hooks (for e
 - [ ] HUD still shows health, meter, time, and round wins.
 - [ ] 375px-wide layout works (screenshot or a short note in the PR).
 - [ ] Build stays static (no secret env vars, no paid CDN).
+- [ ] Leaderboard view shows rank, name, Elo, delta, W-L, and streak, updates after a match, and works at 375px (screenshot in the PR).
 
 ## How to submit
 

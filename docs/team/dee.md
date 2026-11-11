@@ -15,7 +15,7 @@ Give the game a real roster of **in-browser** AI brains that play differently, a
 
 - `src/bots/**` (keep `random`, `rusher`, `statue` working; add new bots)
 - `src/ladder/**` (create this)
-- `tests/bots.test.ts`, `tests/ladder.test.ts`
+- `tests/bots.test.ts`, `tests/ladder.test.ts`, `tests/leaderboard.test.ts`
 - Optional: `docs/BOTS.md` (how each bot thinks, how to run a tournament)
 
 Do not change hitbox math or the spectator canvas except to add a bot-select option or a "run ladder" control if that is a small hook.
@@ -28,6 +28,15 @@ Do not change hitbox math or the spectator canvas except to add a bot-select opt
 - Ladder: Elo or Glicko-2 is fine. Store ratings in a JSON file and/or a pure function that takes a match list and returns a table. A **seeded round-robin** (fixed seed list) must be reproducible: same seeds, same ranking.
 - Replays of official ladder matches should be writable to a folder (gitignored if large; check in a small fixture).
 
+## New: live leaderboard (Stephon, Nov 11, 6:08 PM ET)
+
+Stephon wants a **live leaderboard in the browser that updates after each match**. You own the ranking logic and the page hook:
+
+- `src/ladder/leaderboard.ts`: pure `applyResult(table, matchResult) -> table` with **Elo** (K-factor documented, start 1000 or 1500, your call), **wins / losses / draws**, **current streak** (e.g. `W3`, `L1`), last-match rating delta, and rank order (ties broken deterministically, e.g. rating then wins then id).
+- A versioned JSON shape for the table (Gemini renders it; keep field names stable and documented in `docs/BOTS.md` or `docs/LEADERBOARD.md`).
+- Hook it to the spectator: when a match ends, update the table and persist it in `localStorage`; add a small "run N seeded matches" / "reset leaderboard" control. Gemini does the visuals; you can ship a plain HTML table so it works first.
+- Tests: Elo update math on a fixture, streak transitions (W→L resets), the same match list gives the same table, rebuild from replays matches the live table.
+
 ## Acceptance tests
 
 - [ ] `npm run typecheck && npm test && npm run build` green.
@@ -37,6 +46,7 @@ Do not change hitbox math or the spectator canvas except to add a bot-select opt
 - [ ] Two distinct bots (e.g. rusher vs turtler) can finish a match without throwing.
 - [ ] Ladder: a fixture of N completed matches produces a stable ranking; adding the same results twice does not scramble order (or you document how you handle that).
 - [ ] `npx tsx` or an `npm` script can run a small tournament headlessly and print a table.
+- [ ] Leaderboard: Elo, W/L, and streaks update after every match in the browser and survive a page reload; `tests/leaderboard.test.ts` covers Elo math, streaks, and determinism.
 
 ## How to submit
 
