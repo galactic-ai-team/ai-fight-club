@@ -1,0 +1,557 @@
+/* src/spectator/spectator.css */
+/* Responsive Spectator & Live Leaderboard Styles — Verified 375px to Desktop */
+/* License: CC0-1.0 / MIT */
+
+:root {
+  --afc-bg: #05070f;
+  --afc-panel: #0c1222;
+  --afc-border: #1e2942;
+  --afc-cyan: #00f5d4;
+  --afc-magenta: #f72585;
+  --afc-amber: #ffbe0b;
+  --afc-text: #f0f6fc;
+  --afc-muted: #8b949e;
+  --afc-font: 'Courier New', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+.spectator-root {
+  width: 100%;
+  max-width: 1120px;
+  min-width: 320px;
+  margin: 0 auto;
+  padding: 8px;
+  background: var(--afc-bg);
+  color: var(--afc-text);
+  font-family: var(--afc-font);
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Top Arcade Marquee Bar */
+.spectator-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--afc-panel);
+  border: 1px solid var(--afc-border);
+  border-radius: 6px;
+}
+
+.spectator-brand {
+  font-size: clamp(0.74rem, 2.6vw, 0.95rem);
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  color: var(--afc-cyan);
+  text-transform: uppercase;
+}
+
+.spectator-nav {
+  display: flex;
+  gap: 6px;
+}
+
+.spectator-nav-btn {
+  padding: 4px 8px;
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--afc-text);
+  background: #141d36;
+  border: 1px solid #2b3a63;
+  border-radius: 4px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.spectator-nav-btn.active,
+.spectator-nav-btn:hover {
+  border-color: var(--afc-cyan);
+  color: var(--afc-cyan);
+}
+
+/* Dark Arcade Fight HUD */
+.spectator-hud {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: linear-gradient(180deg, #10172d 0%, #080c18 100%);
+  border: 1px solid var(--afc-border);
+  border-radius: 6px;
+}
+
+.hud-fighter {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.hud-fighter.p2 {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.hud-fighter-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.hud-fighter.p2 .hud-fighter-header {
+  flex-direction: row-reverse;
+}
+
+.hud-portrait {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--afc-cyan);
+  border-radius: 3px;
+  image-rendering: pixelated;
+  flex-shrink: 0;
+}
+
+.hud-fighter.p2 .hud-portrait {
+  border-color: var(--afc-magenta);
+}
+
+.hud-name {
+  font-size: clamp(0.75rem, 3vw, 1.05rem);
+  font-weight: 900;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hud-hp-bar {
+  width: 100%;
+  height: clamp(12px, 2.8vw, 16px);
+  background: #1a2030;
+  border: 1px solid #313c59;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.hud-hp-fill {
+  height: 100%;
+  background: var(--afc-cyan);
+  transition: width 75ms linear;
+}
+
+.hud-fighter.p1 .hud-hp-fill {
+  margin-left: auto;
+}
+
+.hud-fighter.p2 .hud-hp-fill {
+  background: var(--afc-magenta);
+}
+
+.hud-clock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  padding: 3px 6px;
+  background: #05070f;
+  border: 1px solid var(--afc-amber);
+  border-radius: 4px;
+}
+
+.hud-timer-val {
+  font-size: clamp(0.95rem, 4vw, 1.35rem);
+  font-weight: 900;
+  line-height: 1;
+  color: var(--afc-amber);
+}
+
+.hud-tick-val {
+  font-size: 0.58rem;
+  color: var(--afc-muted);
+}
+
+/* Stage Viewport */
+.spectator-stage-wrap {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #050711;
+  border: 2px solid var(--afc-border);
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+}
+
+.spectator-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* Live Leaderboard Panel & /leaderboard Page */
+.afc-lb-shell {
+  width: 100%;
+  background: #090d1a;
+  border: 1px solid var(--afc-border);
+  border-radius: 6px;
+  padding: 10px;
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.afc-lb-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #19223a;
+}
+
+.afc-lb-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.afc-lb-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--afc-cyan);
+  box-shadow: 0 0 8px var(--afc-cyan);
+  animation: afcPulse 1.6s infinite ease-in-out;
+}
+
+.afc-lb-title {
+  margin: 0;
+  font-size: clamp(0.78rem, 2.6vw, 0.95rem);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.afc-lb-matches {
+  font-size: 0.7rem;
+  color: var(--afc-muted);
+}
+
+.afc-lb-cols,
+.afc-lb-row {
+  display: grid;
+  grid-template-columns: 44px minmax(105px, 1.6fr) 84px 54px 50px;
+  align-items: center;
+  gap: 6px;
+}
+
+.afc-lb-cols {
+  padding: 0 8px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  color: #6e7681;
+}
+
+.afc-lb-right {
+  text-align: right;
+}
+
+.afc-lb-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+}
+
+.afc-lb-row {
+  padding: 6px 8px;
+  background: #10172a;
+  border: 1px solid var(--afc-border);
+  border-radius: 5px;
+  will-change: transform;
+}
+
+.afc-lb-row.afc-lb-rank-1 {
+  border-color: rgba(255, 190, 11, 0.55);
+  background: linear-gradient(90deg, rgba(255, 190, 11, 0.09) 0%, #10172a 45%);
+}
+
+.afc-lb-row-up {
+  animation: afcRankUp 1s ease-out;
+}
+
+.afc-lb-row-down {
+  animation: afcRankDown 1s ease-out;
+}
+
+.afc-lb-cell-rank {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.afc-lb-rank-num {
+  font-size: 0.85rem;
+  font-weight: 900;
+}
+
+.afc-lb-rank-1 .afc-lb-rank-num {
+  color: var(--afc-amber);
+}
+
+.afc-lb-shift {
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+
+.afc-shift-up {
+  color: var(--afc-cyan);
+}
+
+.afc-shift-down {
+  color: var(--afc-magenta);
+}
+
+.afc-shift-flat {
+  color: #484f58;
+}
+
+.afc-lb-cell-fighter {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.afc-lb-avatar {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  border: 1px solid var(--chip-color, var(--afc-cyan));
+  border-radius: 4px;
+  overflow: hidden;
+  background: #060814;
+}
+
+.afc-lb-chip {
+  width: 4px;
+  height: 32px;
+}
+
+.afc-lb-portrait {
+  width: 30px;
+  height: 30px;
+  display: block;
+  image-rendering: pixelated;
+}
+
+.afc-lb-ident {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.afc-lb-name {
+  font-size: 0.8rem;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.afc-lb-model {
+  font-size: 0.62rem;
+  color: var(--afc-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.afc-lb-cell-elo {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.afc-lb-elo {
+  font-size: 0.86rem;
+  font-weight: 900;
+}
+
+.afc-lb-delta {
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+
+.afc-delta-pos {
+  color: var(--afc-cyan);
+  background: rgba(0, 245, 212, 0.14);
+}
+
+.afc-delta-neg {
+  color: var(--afc-magenta);
+  background: rgba(247, 37, 133, 0.16);
+}
+
+.afc-delta-zero {
+  color: var(--afc-muted);
+  background: rgba(139, 148, 158, 0.12);
+}
+
+.afc-lb-cell-wl {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+
+.afc-lb-wl {
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.afc-lb-winbar {
+  width: 100%;
+  max-width: 44px;
+  height: 4px;
+  background: #1f293d;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.afc-lb-winbar-fill {
+  height: 100%;
+}
+
+.afc-lb-cell-streak {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.afc-lb-streak {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 0.66rem;
+  font-weight: 800;
+}
+
+.afc-streak-hot {
+  color: var(--afc-amber);
+  background: rgba(255, 190, 11, 0.16);
+  border: 1px solid rgba(255, 190, 11, 0.55);
+}
+
+.afc-streak-win {
+  color: var(--afc-cyan);
+  background: rgba(0, 245, 212, 0.12);
+  border: 1px solid rgba(0, 245, 212, 0.35);
+}
+
+.afc-streak-loss {
+  color: var(--afc-magenta);
+  background: rgba(247, 37, 133, 0.12);
+  border: 1px solid rgba(247, 37, 133, 0.35);
+}
+
+.afc-streak-flat {
+  color: #6e7681;
+  background: #161d30;
+}
+
+@keyframes afcPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+@keyframes afcRankUp {
+  0% { border-color: var(--afc-cyan); box-shadow: 0 0 12px rgba(0, 245, 212, 0.45); }
+  100% { box-shadow: none; }
+}
+
+@keyframes afcRankDown {
+  0% { border-color: var(--afc-magenta); box-shadow: 0 0 12px rgba(247, 37, 133, 0.35); }
+  100% { box-shadow: none; }
+}
+
+/* 375px Mobile Layout Guarantee */
+@media (max-width: 440px) {
+  .spectator-root {
+    padding: 6px;
+    gap: 6px;
+  }
+
+  .spectator-hud {
+    padding: 6px 8px;
+    gap: 6px;
+  }
+
+  .hud-portrait {
+    width: 22px;
+    height: 22px;
+  }
+
+  .afc-lb-shell {
+    padding: 8px 6px;
+  }
+
+  .afc-lb-cols,
+  .afc-lb-row {
+    grid-template-columns: 34px minmax(88px, 1fr) 66px 42px 42px;
+    gap: 4px;
+    padding-left: 5px;
+    padding-right: 5px;
+  }
+
+  .afc-lb-portrait {
+    width: 24px;
+    height: 24px;
+  }
+
+  .afc-lb-chip {
+    width: 3px;
+    height: 26px;
+  }
+
+  .afc-lb-name {
+    font-size: 0.72rem;
+  }
+
+  .afc-lb-model {
+    font-size: 0.56rem;
+  }
+
+  .afc-lb-elo {
+    font-size: 0.76rem;
+  }
+
+  .afc-lb-wl {
+    font-size: 0.66rem;
+  }
+
+  .afc-lb-streak {
+    min-width: 32px;
+    padding: 2px 3px;
+    font-size: 0.6rem;
+  }
+}
