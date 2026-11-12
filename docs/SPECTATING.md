@@ -66,6 +66,20 @@ their opening positions — that is intended.
   round-end or match-end, because the canvas banner already covers
   those moments.
 
+## What the fighters see (AI Eyes PiP)
+
+Under the stage, a **"What the fighters see"** panel shows a small
+first-person frame for each fighter — the same view the vision coach
+gets, not a second broadcast camera. The opponent appears only when
+they are in front; when they are behind, the frame shows the red
+rear-threat cue instead. It never shows health or meter numbers, raw
+observation data, or join codes.
+
+- **Toggle:** P1 / P2 / Both / Off, above the frames. Default is Both.
+  At 375px wide the two frames stack vertically so each stays readable.
+- The panel is on both the Commander watch page and the auto arena.
+- Details: [EYES_PIP.md](EYES_PIP.md).
+
 Commentary is deterministic: the lines are pure functions of the
 match event plus public match state (health, wins, round). The same
 match always prints the same log, live or replayed. There is no
@@ -96,6 +110,14 @@ recorded inputs through the same engine and must reproduce the live
 match exactly (same canonical state, same winner, same round score).
 That is checked in code by `tests/determinism.test.ts` ("runMatch +
 playback of the recorded replay is identical").
+
+**Replay review (AI Eyes):** `buildReviewStrip()` in
+`src/eyes/review.ts` turns a replay into a strip of one side's own-POV
+frames — every 30 ticks plus every hit, knockout, command, round end,
+and match end. `suggestReviewPrompt()` describes the strip in plain
+words (what the fighter saw, not a stat sheet) for the AI to review,
+and `applyReview()` merges what it learned into its notes. See
+[EYES_PIP.md](EYES_PIP.md).
 
 **M0 limit — no in-page replay loader yet.** You can save a replay
 file, and the code can play it back, but the spectator page cannot

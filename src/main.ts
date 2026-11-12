@@ -10,6 +10,8 @@ import {
   type CommentaryContext,
 } from "./commentary/index.ts";
 import { momentLine, roundIntroLine, type OverlayInput } from "./commentary/overlay.ts";
+import { parsePipMode, pipLabel, renderPipFrames, type PipMode } from "./eyes/pip.ts";
+import { applyPipMode, paintPovFrame, setPipLabel } from "./eyes/pipDom.ts";
 import "./spectator/spectator.css";
 import { drawPortraitToCanvas } from "./spectator/pixelArt.ts";
 import { mountSpectatorArtBoard } from "./spectator/mountBoard.ts";
@@ -51,6 +53,28 @@ const autoplayStatus = document.querySelector<HTMLDivElement>("#autoplay-status"
 
 const ctx = canvas.getContext("2d")!;
 resizeCanvas(canvas);
+
+// AI Eyes PiP ("what the fighters see"). Painted from the live MatchState,
+// re-rendered only when the tick or the mode changes.
+const eyesPip = document.querySelector<HTMLElement>("#eyes-pip");
+let pipMode: PipMode = "both";
+let lastPipTick = -1;
+let lastPipMode: PipMode | null = null;
+
+function updateEyesPip(state: MatchState): void {
+  if (!eyesPip) return;
+  if (state.tick === lastPipTick && pipMode === lastPipMode) return;
+  lastPipTick = state.tick;
+  lastPipMode = pipMode;
+  applyPipMode(eyesPip, pipMode);
+  if (pipMode === "off") return;
+  for (const frame of renderPipFrames(state, pipMode)) {
+    const pipCanvas = document.querySelector<HTMLCanvasElement>(`#eyes-${frame.side}`);
+    if (pipCanvas) paintPovFrame(pipCanvas, frame);
+    const name = frame.side === "p1" ? state.p1.character : state.p2.character;
+    setPipLabel(eyesPip, frame.side, pipLabel(frame.side, name));
+  }
+}
 window.addEventListener("resize", () => {
   resizeCanvas(canvas);
   if (match) renderMatch(ctx, match);
@@ -272,6 +296,7 @@ function frame(now: number): void {
   }
   renderHud(match);
   renderMatch(ctx, match);
+  updateEyesPip(match);
 }
 
 function scheduleNextMatch(): void {
@@ -310,6 +335,17 @@ pauseBtn.addEventListener("click", () => {
   pauseBtn.textContent = playing ? "Pause" : "Resume";
   last = performance.now();
 });
+
+if (eyesPip) {
+  applyPipMode(eyesPip, pipMode);
+  for (const btn of Array.from(eyesPip.querySelectorAll<HTMLButtonElement>("[data-pip-mode]"))) {
+    btn.addEventListener("click", () => {
+      pipMode = parsePipMode(btn.getAttribute("data-pip-mode"));
+      if (match) updateEyesPip(match);
+      else applyPipMode(eyesPip, pipMode);
+    });
+  }
+}
 
 downloadBtn.addEventListener("click", () => {
   if (!replay) return;

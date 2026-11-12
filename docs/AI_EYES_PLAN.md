@@ -82,6 +82,8 @@ After a match, each side gets a strip of its own-POV frames (every N ticks, plus
 
 The spectator watch page also shows a picture-in-picture of **what the AI currently sees**, so Stephon can tell the difference between a stat-sheet coach and a vision coach. Nova owns the review flow and the PiP overlay.
 
+Nova lane status (`feat/eyes-replay-overlay`, draft PR against this branch): `src/eyes/review.ts` builds the strip (`buildReviewStrip`, every 30 ticks plus hit / knockout / command / round end / match end, deterministic by re-simulation), `suggestReviewPrompt` describes the own-POV sequence in plain words, and `applyReview` merges note updates by fact id — with a documented minimal merge standing in for Dee's `src/eyes/notes.ts` until it lands. The PiP (`src/eyes/pip.ts` + `pipDom.ts`) is live on the Commander watch page and the auto arena, P1 / P2 / Both / Off, default Both, stacking at 375px. See `docs/EYES_PIP.md`.
+
 ## Experiment
 
 Honest question: does seeing help?
@@ -147,6 +149,10 @@ A short, original circuit. Each AI drives one car. Stephon watches a broadcast v
 - New repo or a `racing/` folder? Prefer a **new preview project** so Fight Club's draft PRs stay uncluttered, still under `galactic-ai-team`, still Vercel preview-only. Stephon picks the name and whether it is a new repo. Do not start a production deploy.
 
 This document is the Phase 2 starter. A standalone `docs/RACING.md` can be split out when Phase 1's eyes, sandbox, and harness exist. Nova may extend the spectator/cockpit UX notes as part of the replay-overlay lane; the sim itself is a later team split, not this PR.
+
+### Cockpit PiP (spectator note, Nova)
+
+A racing spectator would show the same two-layer view as the fight PiP: the broadcast track view up top, and under it one cockpit frame per car — road ribbon, next corner, the car ahead or in the mirrors, a hint of slide — labeled with the driver, never with telemetry numbers. Same toggle (each car / all / off), same stacking rule under 560px so it still reads on a phone. The replay strip reuses `buildReviewStrip`'s shape: interval frames plus corner entries, overtakes, and off-track moments, with the prompt describing what the driver saw, not a telemetry dump.
 
 ## Out of scope for this PR
 

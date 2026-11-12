@@ -1,4 +1,4 @@
-/** Local typings so the PNG encoder can use Node's zlib without adding @types/node. */
+/** Local typings so tests can verify the pure-JS PNG encoder's output with Node's zlib, without adding @types/node. */
 declare module "node:zlib" {
-  export function deflateSync(data: Uint8Array, options?: { level?: number }): Uint8Array;
+  export function inflateSync(data: Uint8Array): Uint8Array;
 }
