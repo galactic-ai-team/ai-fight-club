@@ -73,6 +73,8 @@ Options:
   --window off|3s|5s|5s-wait  (create)
   --wait-for-both       Hold each 5s window until both command, or 45s
   --open-seat none|p1|p2|both   Mark a seat commandable with no join code
+  --start-when-ready    Hold round 1 until both coaches command, or the timeout
+  --ready-timeout <ms|seconds>  Budget for --start-when-ready (default 90s)
   --seed --p1-name --p2-name --p1-char --p2-char --p1-bot --p2-bot
   --ttl <seconds>
 
@@ -146,6 +148,12 @@ async function cmdCreate(): Promise<void> {
     p2Bot: arg("--p2-bot") ?? "zoner",
     ttlSeconds: arg("--ttl") ? Number(arg("--ttl")) : undefined,
     openSeat: arg("--open-seat") ?? "none",
+    startWhenReady: flag("--start-when-ready"),
+    readyTimeoutMs: arg("--ready-timeout")
+      ? (Number(arg("--ready-timeout")) < 1000
+        ? Number(arg("--ready-timeout")) * 1000
+        : Number(arg("--ready-timeout")))
+      : undefined,
   };
   const { body: res } = await request("/api/match", { method: "POST", body: JSON.stringify(body) });
   const r = res as {
@@ -154,6 +162,8 @@ async function cmdCreate(): Promise<void> {
     relayPath: string;
     window: string;
     openSeat?: string;
+    startWhenReady?: boolean;
+    readyTimeoutMs?: number;
     seed: number;
     expiresAt: string;
     p1: { controller: string };
@@ -181,7 +191,7 @@ async function cmdCreate(): Promise<void> {
   console.log(`watch ${secrets.watchUrl}`);
   console.log(`relay ${secrets.relayUrl}`);
   console.log(`window ${r.window}  seed ${r.seed}  expires ${r.expiresAt}`);
-  console.log(`p1 ${r.p1.controller}  p2 ${r.p2.controller}  openSeat ${r.openSeat ?? "none"}`);
+  console.log(`p1 ${r.p1.controller}  p2 ${r.p2.controller}  openSeat ${r.openSeat ?? "none"}  startWhenReady ${r.startWhenReady ? "yes" : "no"}  readyTimeoutMs ${r.readyTimeoutMs ?? ""}`);
   console.log(`join codes and host token written to ${resolve(file)} (mode 0600, not printed)`);
 }
 

@@ -37,6 +37,8 @@ export interface CreatedMatchJson {
   relayPath: string;
   window: WindowMode;
   openSeat: OpenSeat;
+  startWhenReady?: boolean;
+  readyTimeoutMs?: number;
   seed: number;
   expiresAt: string;
   p1: { controller: string; character: string; bot: string };
@@ -59,6 +61,8 @@ export async function getState(id: string): Promise<{
   hostPresent: boolean;
   window: WindowMode;
   openSeat: OpenSeat;
+  startWhenReady?: boolean;
+  readyTimeoutMs?: number;
   seed: number;
   p1: { controller: string; character: string; bot: string };
   p2: { controller: string; character: string; bot: string };
@@ -99,6 +103,8 @@ export async function claimHost(id: string, hostToken: string): Promise<{
   seed: number;
   window: WindowMode;
   openSeat: OpenSeat;
+  startWhenReady?: boolean;
+  readyTimeoutMs?: number;
   p1: { controller: string; character: string; bot: string };
   p2: { controller: string; character: string; bot: string };
 }> {
@@ -115,6 +121,8 @@ export async function volunteerHost(id: string): Promise<{
   seed: number;
   window: string;
   openSeat: OpenSeat;
+  startWhenReady?: boolean;
+  readyTimeoutMs?: number;
   volunteer: boolean;
   volunteerToken: string;
   p1: { controller: string; character: string; bot: string };

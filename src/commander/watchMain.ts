@@ -104,9 +104,18 @@ function renderPublic(s: MatchPublicState): void {
   renderCard("p1", s.p1);
   renderCard("p2", s.p2);
 
-  if (s.window.open) {
+  const overlayLabel = document.getElementById("window-label");
+  if (s.waitingForCoaches) {
+    overlay.classList.add("open");
+    overlayCount.textContent = ((s.readyRemainingMs ?? 0) / 1000).toFixed(0);
+    if (overlayLabel) overlayLabel.textContent = "Waiting for both coaches";
+    const s1 = s.coachesReady?.p1 ? `<span class="yes">${s.p1.controller} ✓</span>` : s.p1.controller;
+    const s2 = s.coachesReady?.p2 ? `<span class="yes">${s.p2.controller} ✓</span>` : s.p2.controller;
+    overlaySubs.innerHTML = `${s1} &nbsp;·&nbsp; ${s2}`;
+  } else if (s.window.open) {
     overlay.classList.add("open");
     overlayCount.textContent = (s.window.remainingMs / 1000).toFixed(1);
+    if (overlayLabel) overlayLabel.textContent = "Decision window — send a command";
     const s1 = s.window.p1Submitted ? `<span class="yes">${s.p1.controller} ✓</span>` : s.p1.controller;
     const s2 = s.window.p2Submitted ? `<span class="yes">${s.p2.controller} ✓</span>` : s.p2.controller;
     overlaySubs.innerHTML = `${s1} &nbsp;·&nbsp; ${s2}`;
@@ -174,6 +183,7 @@ createForm.addEventListener("submit", (e) => {
       window: (document.getElementById("c-window") as HTMLSelectElement).value,
       openSeat: (document.getElementById("c-open-seat") as HTMLSelectElement).value,
       seed: Number((document.getElementById("c-seed") as HTMLInputElement).value) || 1,
+      startWhenReady: (document.getElementById("c-start-when-ready") as HTMLInputElement | null)?.checked ?? false,
     };
     const created = await createMatch(body);
     saveHostToken(created.id, created.secrets.hostToken);
@@ -249,6 +259,8 @@ function openArena(id: string): void {
           openSeat: info.openSeat ?? "none",
           p1: info.p1,
           p2: info.p2,
+          startWhenReady: info.startWhenReady,
+          readyTimeoutMs: info.readyTimeoutMs,
         },
         token,
         {
@@ -256,6 +268,25 @@ function openArena(id: string): void {
             renderPublic(s);
           },
           onLog: logLine,
+          onLeaseLost() {
+            statusEl.textContent = "Host lease lost — watching the live server state.";
+            statusEl.classList.add("warn");
+            startSpectator(canvas, id, {
+              onPublic(s) {
+                paintPortraits(s.p1.character, s.p2.character);
+                renderPublic(s);
+              },
+              onStatus(text) {
+                statusEl.textContent = text;
+                statusEl.classList.toggle("warn", /wait/i.test(text) || /lost/i.test(text));
+              },
+              onLog: logLine,
+              onBecameHost() {
+                statusEl.textContent = "Live host (volunteer) · commanders can send plans now.";
+                statusEl.classList.remove("warn");
+              },
+            });
+          },
         },
       );
       statusEl.textContent = "Live host · commanders can send plans now.";

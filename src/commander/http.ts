@@ -8,6 +8,7 @@ import {
   type CreateMatchRequest,
   type MatchPublicState,
 } from "./types.ts";
+import { clampReadyTimeoutMs, DEFAULT_READY_TIMEOUT_MS, parseStartWhenReady } from "./hostLease.ts";
 
 type Side = "p1" | "p2";
 
@@ -179,6 +180,16 @@ async function handleCreate(req: ApiRequest, store: MatchStore, nowMs: number): 
     if (!parsed) return json(400, { error: "openSeat must be none, p1, p2, or both" });
     input.openSeat = parsed;
   }
+  const readyRaw = b.startWhenReady ?? b.start_when_ready ?? b["start-when-ready"] ?? b.waitForCoaches;
+  if (readyRaw !== undefined && readyRaw !== null && readyRaw !== "") {
+    input.startWhenReady = parseStartWhenReady(readyRaw);
+  }
+  const timeoutRaw = b.readyTimeoutMs ?? b.ready_timeout_ms ?? b.readyTimeoutSeconds ?? b.ready_timeout;
+  if (timeoutRaw !== undefined && timeoutRaw !== null && timeoutRaw !== "") {
+    const n = Number(timeoutRaw);
+    // Values under 1000 are treated as seconds for the CLI-friendly form.
+    input.readyTimeoutMs = clampReadyTimeoutMs(n > 0 && n < 1000 ? n * 1000 : n);
+  }
   const created = await store.create(input, nowMs);
   const m = created.record;
   return json(201, {
@@ -187,6 +198,8 @@ async function handleCreate(req: ApiRequest, store: MatchStore, nowMs: number): 
     relayPath: `/relay.html?m=${encodeURIComponent(m.id)}`,
     window: m.windowMode,
     openSeat: m.openSeat ?? "none",
+    startWhenReady: !!m.startWhenReady,
+    readyTimeoutMs: m.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS,
     seed: m.seed,
     expiresAt: new Date(m.expiresAtMs).toISOString(),
     p1: { controller: m.p1Controller, character: m.p1Character, bot: m.p1Bot },
@@ -241,6 +254,8 @@ async function handleGetState(
     hostPresent: m.hostPresent && nowMs - m.hostSeenAtMs <= 15_000,
     window: m.windowMode,
     openSeat,
+    startWhenReady: !!m.startWhenReady,
+    readyTimeoutMs: m.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS,
     seed: m.seed,
     p1: { controller: m.p1Controller, character: m.p1Character, bot: m.p1Bot },
     p2: { controller: m.p2Controller, character: m.p2Character, bot: m.p2Bot },
@@ -308,6 +323,8 @@ async function handleClaim(
     seed: m.seed,
     window: m.windowMode,
     openSeat: m.openSeat ?? "none",
+    startWhenReady: !!m.startWhenReady,
+    readyTimeoutMs: m.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS,
     p1: { controller: m.p1Controller, character: m.p1Character, bot: m.p1Bot },
     p2: { controller: m.p2Controller, character: m.p2Character, bot: m.p2Bot },
   });
@@ -338,6 +355,8 @@ async function handleVolunteer(
     seed: m.seed,
     window: m.windowMode,
     openSeat: m.openSeat ?? "none",
+    startWhenReady: !!m.startWhenReady,
+    readyTimeoutMs: m.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS,
     volunteer: true,
     // Lease shown once to this caller; it is a short-lived host token, not a join code.
     volunteerToken: result.token,

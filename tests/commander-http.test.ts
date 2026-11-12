@@ -412,3 +412,47 @@ describe("open-seat GET /cmd", () => {
     expect(bad.status).toBe(400);
   });
 });
+
+
+describe("startWhenReady create flag", () => {
+  it("stores startWhenReady and readyTimeoutMs and returns them on create, state, and host claim", async () => {
+    const store = new MemoryStore();
+    const created = await call(store, req({
+      method: "POST",
+      path: "/api/match",
+      body: { seed: 11, window: "off", startWhenReady: true, readyTimeoutMs: 30_000 },
+    }));
+    expect(created.status).toBe(201);
+    const body = created.body as { id: string; startWhenReady: boolean; readyTimeoutMs: number; secrets: { hostToken: string } };
+    expect(body.startWhenReady).toBe(true);
+    expect(body.readyTimeoutMs).toBe(30_000);
+
+    const st = await call(store, req({ method: "GET", path: `/api/match/${body.id}/state` }));
+    expect(st.status).toBe(200);
+    const s = st.body as { startWhenReady: boolean; readyTimeoutMs: number };
+    expect(s.startWhenReady).toBe(true);
+    expect(s.readyTimeoutMs).toBe(30_000);
+
+    const claimed = await call(store, req({
+      method: "POST",
+      path: `/api/match/${body.id}/host`,
+      body: { hostToken: body.secrets.hostToken },
+    }));
+    expect(claimed.status).toBe(200);
+    const c = claimed.body as { startWhenReady: boolean; readyTimeoutMs: number };
+    expect(c.startWhenReady).toBe(true);
+    expect(c.readyTimeoutMs).toBe(30_000);
+  });
+
+  it("treats a ready-timeout under 1000 as seconds and defaults the flag to off", async () => {
+    const store = new MemoryStore();
+    const created = await call(store, req({
+      method: "POST",
+      path: "/api/match",
+      body: { seed: 12, readyTimeoutSeconds: 45 },
+    }));
+    const body = created.body as { startWhenReady: boolean; readyTimeoutMs: number };
+    expect(body.startWhenReady).toBe(false);
+    expect(body.readyTimeoutMs).toBe(45_000);
+  });
+});

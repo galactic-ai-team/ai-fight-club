@@ -94,6 +94,10 @@
               <option value="both">Both seats open, no codes</option>
             </select>
           </label>
+          <label>
+            <input id="c-start-when-ready" type="checkbox" />
+            Wait for both coaches before round 1 (90s timeout)
+          </label>
           <button type="submit" id="c-create">Create match</button>
         </form>
         <div id="create-secrets" class="hidden"></div>
@@ -139,7 +143,7 @@
           <div class="taunt p2" id="taunt-p2"></div>
           <div id="window-overlay">
             <div class="count" id="window-count">2.5</div>
-            <div class="label">Decision window — send a command</div>
+            <div class="label" id="window-label">Decision window — send a command</div>
             <div class="subs" id="window-subs"></div>
           </div>
           <canvas id="stage" width="960" height="540" aria-label="Fight stage"></canvas>

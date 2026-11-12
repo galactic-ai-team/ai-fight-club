@@ -34,6 +34,11 @@ import type {
   OpenSeat,
   WindowMode,
 } from "./types.ts";
+import {
+  DEFAULT_READY_TIMEOUT_MS,
+  afterHostTransportError,
+  coachStartGate,
+} from "./hostLease.ts";
 
 export interface LiveMeta {
   id: string;
@@ -42,6 +47,10 @@ export interface LiveMeta {
   openSeat?: OpenSeat;
   p1: { controller: string; character: string; bot: string };
   p2: { controller: string; character: string; bot: string };
+  startWhenReady?: boolean;
+  readyTimeoutMs?: number;
+  /** True when a volunteer takes over a fight that already left the pre-round hold. */
+  alreadyReleased?: boolean;
 }
 
 export interface HostHandle {
@@ -89,9 +98,14 @@ export async function startHost(
   hooks: {
     onPublic: (s: MatchPublicState) => void;
     onLog: (text: string, kind: string) => void;
+    onLeaseLost?: () => void;
   },
 ): Promise<HostHandle> {
   const claimed = await claimHost(meta.id, hostToken);
+  const startWhenReady = !!(claimed.startWhenReady ?? meta.startWhenReady);
+  const readyTimeoutMs = claimed.readyTimeoutMs ?? meta.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS;
+  const heldSinceMs = Date.now();
+  let released = !startWhenReady || !!meta.alreadyReleased;
   const ctx = require2d(canvas);
   resizeCanvas(canvas);
 
@@ -128,8 +142,11 @@ export async function startHost(
   const events: string[] = [];
   let lastSeq = 0;
   let incoming: CommandRecord[] = [];
-  let playing = true;
+  let p1CommandCount = 0;
+  let p2CommandCount = 0;
+  let playing = released;
   let stopped = false;
+  let leaseLost = false;
   let acc = 0;
   let lastTs = performance.now();
   let lastPublish = 0;
@@ -148,6 +165,8 @@ export async function startHost(
       pilot.setCommand(parsed.partial, tick);
       c.appliedTick = tick;
       lastCmd[c.side] = c;
+      if (c.side === "p1") p1CommandCount += 1;
+      else p2CommandCount += 1;
       if (win.open) markSubmitted(win, c.side);
       pendingMarks.push({ seq: c.seq, tick });
       hooks.onLog(
@@ -186,9 +205,25 @@ export async function startHost(
       hostPresent: true,
       updatedAtMs: nowMs,
       startedAtMs,
-      phaseOverride: win.open ? "window" : undefined,
+      phaseOverride: !released ? "waiting" : win.open ? "window" : undefined,
       openSeat: claimed.openSeat ?? meta.openSeat ?? "none",
+      startWhenReady,
+      waitingForCoaches: !released && startWhenReady,
+      coachesReady: { p1: p1CommandCount > 0, p2: p2CommandCount > 0 },
+      readyRemainingMs: !released
+        ? Math.max(0, readyTimeoutMs - (nowMs - heldSinceMs))
+        : 0,
     });
+  }
+
+  function noteLeaseLost(err: unknown): void {
+    if (stopped || leaseLost) return;
+    const next = afterHostTransportError("hosting", err);
+    if (!next.resumeSpectator) return;
+    leaseLost = true;
+    stopped = true;
+    hooks.onLog(next.log, "warn");
+    hooks.onLeaseLost?.();
   }
 
   function tick(): void {
@@ -232,6 +267,30 @@ export async function startHost(
     if (stopped) return;
     requestAnimationFrame(frame);
     const nowMs = Date.now();
+    if (!released) {
+      const gate = coachStartGate({
+        startWhenReady,
+        p1CommandCount,
+        p2CommandCount,
+        alreadyReleased: released,
+        heldSinceMs,
+        nowMs,
+        timeoutMs: readyTimeoutMs,
+      });
+      if (!gate.hold) {
+        released = true;
+        playing = !match.over;
+        lastTs = now;
+        acc = 0;
+        if (gate.releasedBecause === "timeout") {
+          hooks.onLog("Coach wait timed out — starting with whoever is connected.", "host");
+        } else if (gate.releasedBecause === "both-ready") {
+          hooks.onLog("Both coaches connected — fight starting.", "host");
+        }
+      } else {
+        playing = false;
+      }
+    }
     if (win.open && shouldCloseWindow(win, nowMs)) {
       closeWindow(win);
       playing = !match.over;
@@ -270,11 +329,7 @@ export async function startHost(
           }
         })
         .catch((err: unknown) => {
-          const msg = err instanceof Error ? err.message : "";
-          if (/invalid host|unauthorized|401/i.test(msg)) {
-            stopped = true;
-            hooks.onLog("Host lease lost — this tab is no longer in control.", "warn");
-          }
+          noteLeaseLost(err);
         });
       if (pendingMarks.length) {
         const batch = pendingMarks.splice(0, pendingMarks.length);
@@ -286,11 +341,7 @@ export async function startHost(
     if (now - lastPublish > 250 && pub) {
       lastPublish = now;
       void publishState(meta.id, hostToken, pub).catch((err: unknown) => {
-        const msg = err instanceof Error ? err.message : "";
-        if (/invalid host|unauthorized|401/i.test(msg)) {
-          stopped = true;
-          hooks.onLog("Host lease lost — this tab is no longer in control.", "warn");
-        }
+        noteLeaseLost(err);
       });
     }
   }
@@ -343,13 +394,30 @@ export function startSpectator(
           saveHostToken(id, v.volunteerToken);
           hooks.onStatus("This tab volunteered as host — running the fight.");
           hooks.onLog?.("Volunteer host claimed. Autopilot is running in this tab.", "host");
+          const alreadyReleased = !!(r.state && (r.state.tick > 0 || r.state.phase === "fight" || r.state.phase === "window" || r.state.over));
           hostHandle = await startHost(
             canvas,
-            { id, seed: v.seed, window: (v.window === "3s" || v.window === "5s" || v.window === "5s-wait" ? v.window : "off"), openSeat: v.openSeat ?? "none", p1: v.p1, p2: v.p2 },
+            {
+              id,
+              seed: v.seed,
+              window: (v.window === "3s" || v.window === "5s" || v.window === "5s-wait" ? v.window : "off"),
+              openSeat: v.openSeat ?? "none",
+              p1: v.p1,
+              p2: v.p2,
+              startWhenReady: v.startWhenReady,
+              readyTimeoutMs: v.readyTimeoutMs,
+              alreadyReleased,
+            },
             v.volunteerToken,
             {
               onPublic: hooks.onPublic,
               onLog: (text, kind) => hooks.onLog?.(text, kind),
+              onLeaseLost() {
+                hostHandle = null;
+                promoting = false;
+                hooks.onStatus("Host lease lost — watching the live server state.");
+                if (!stopped) void poll();
+              },
             },
           );
           hooks.onBecameHost?.();

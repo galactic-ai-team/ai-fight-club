@@ -11,6 +11,7 @@ import {
   type PublicMatchListItem,
   type WindowMode,
 } from "./types.ts";
+import { clampReadyTimeoutMs, DEFAULT_READY_TIMEOUT_MS, parseStartWhenReady } from "./hostLease.ts";
 
 export const DEFAULT_TTL_MS = 2 * 60 * 60 * 1000;
 export const MAX_TTL_MS = 24 * 60 * 60 * 1000;
@@ -33,6 +34,8 @@ export interface StoredMatch {
   p2Controller: string;
   /** Which seats accept commands with no join code, for this match only. */
   openSeat: OpenSeat;
+  startWhenReady: boolean;
+  readyTimeoutMs: number;
   p1CodeHash: string;
   p2CodeHash: string;
   hostTokenHash: string;
@@ -120,6 +123,8 @@ export function publicView(m: StoredMatch, nowMs: number): Record<string, unknow
     seed: m.seed,
     window: m.windowMode,
     openSeat: m.openSeat ?? "none",
+    startWhenReady: !!m.startWhenReady,
+    readyTimeoutMs: m.readyTimeoutMs ?? DEFAULT_READY_TIMEOUT_MS,
     p1: { controller: m.p1Controller, character: m.p1Character, bot: m.p1Bot },
     p2: { controller: m.p2Controller, character: m.p2Character, bot: m.p2Bot },
     status: item.status,
@@ -133,6 +138,8 @@ export function publicView(m: StoredMatch, nowMs: number): Record<string, unknow
 
 function freshness(m: StoredMatch, nowMs: number): StoredMatch {
   if (!m.openSeat) m = { ...m, openSeat: "none" };
+  if (m.startWhenReady === undefined) m = { ...m, startWhenReady: false };
+  if (!m.readyTimeoutMs) m = { ...m, readyTimeoutMs: DEFAULT_READY_TIMEOUT_MS };
   if (nowMs > m.expiresAtMs) {
     return { ...m, status: m.status === "ended" ? "ended" : "stale" };
   }
@@ -156,6 +163,8 @@ export class MemoryStore implements MatchStore {
     const hostToken = newHostToken();
     const windowMode: WindowMode = isWindowMode(input.window) ? input.window : "5s";
     const openSeat: OpenSeat = parseOpenSeat(input.openSeat) ?? "none";
+    const startWhenReady = parseStartWhenReady(input.startWhenReady);
+    const readyTimeoutMs = clampReadyTimeoutMs(input.readyTimeoutMs);
     const record: StoredMatch = {
       id,
       createdAtMs: nowMs,
@@ -169,6 +178,8 @@ export class MemoryStore implements MatchStore {
       p1Controller: (input.p1Controller ?? "Lumi").slice(0, 40),
       p2Controller: (input.p2Controller ?? "GPT-6").slice(0, 40),
       openSeat,
+      startWhenReady,
+      readyTimeoutMs,
       p1CodeHash: await hashToken(p1Code),
       p2CodeHash: await hashToken(p2Code),
       hostTokenHash: await hashToken(hostToken),

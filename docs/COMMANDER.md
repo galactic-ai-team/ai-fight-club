@@ -174,13 +174,17 @@ On a Vercel preview the durable store is a free Supabase project (`ai-fight-club
 - `AFC_STORE_SECRET` — server-only. The RPCs that write matches require this. It is not the Supabase service role; the service role key, if you add it later, also stays server-only.
 - `AFC_STORE=supabase` (optional; auto-detected when the URL and a key are set)
 
-The phone spectator, the host, and the CLI all read the same public snapshot (short polling, 150–250 ms). If no host tab is active for 15 seconds, the next spectator automatically volunteers and runs the 60 Hz sim in that browser. A volunteer lease is revoked if the original host returns, or if the volunteer stops heartbeating. The fight cannot run with zero open tabs: there is no free long-running server at 60 Hz.
+The phone spectator, the host, and the CLI all read the same public snapshot (short polling, 150–250 ms). If no host tab is active for 15 seconds, the next spectator automatically volunteers and runs the 60 Hz sim in that browser. A volunteer lease is revoked if the original host returns, or if the volunteer stops heartbeating. When a tab loses its host lease, it falls back to spectator polling and keeps updating from the server state instead of freezing on the last local frame. The fight cannot run with zero open tabs: there is no free long-running server at 60 Hz.
+
+Create a room with `startWhenReady` (CLI: `--start-when-ready`, default timeout 90s) to hold round 1 until both coaches have sent a command, or the timeout elapses. Mid-match volunteer hosts do not re-hold a fight that already started.
+
+For a seamless live fight, run `npx tsx scripts/lumi-coach.ts` on P1 and `npx tsx scripts/gemini-coach.ts` on an open P2 seat. The Gemini coach reads `GEMINI_API_KEY` or `GEMINI_API_KEY_FILE` (never hardcode or log the key). Use window mode `off` when both coaches are fast loops.
 
 Lumi's fighter uses `src/bots/lumi.ts` and GPT-6's uses `src/bots/gpt6.ts` (Vanta Coil) until a commander sends a stance, spacing, or aggression plan.
 
 ## Tests
 
-`tests/commander.test.ts` covers command parsing (including noisy LLM replies), window timing, and replay determinism: the same seed and command log always produce the same canonical state, engine playback matches the live run, and a command only affects ticks at or after its timestamp. `tests/commander-http.test.ts` covers join-code auth, the one-time secrets response, host publish/pull, open-seat GET `/cmd`, rate limits, and `?format=text`.
+`tests/commander.test.ts` covers command parsing (including noisy LLM replies), window timing, and replay determinism: the same seed and command log always produce the same canonical state, engine playback matches the live run, and a command only affects ticks at or after its timestamp. `tests/commander-http.test.ts` covers join-code auth, the one-time secrets response, host publish/pull, open-seat GET `/cmd`, rate limits, `?format=text`, and the `startWhenReady` create flag. `tests/live-session.test.ts` covers host-lease fallback to spectating and the coach-ready gate (both-ready, timeout, and no re-hold).
 
 ## Rules
 

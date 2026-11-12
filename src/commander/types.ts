@@ -160,6 +160,11 @@ export interface MatchPublicState {
   startedAtMs: number | null;
   /** Which seats can be commanded with no join code, for this match only. */
   openSeat?: OpenSeat;
+  /** When true, round 1 is held until both coaches command or the timeout elapses. */
+  startWhenReady?: boolean;
+  waitingForCoaches?: boolean;
+  coachesReady?: { p1: boolean; p2: boolean };
+  readyRemainingMs?: number;
 }
 
 export interface PublicMatchListItem {
@@ -188,6 +193,10 @@ export interface CreateMatchRequest {
   ttlSeconds?: number;
   /** Mark a fighter as commandable by anyone with no code, for this match only. */
   openSeat?: OpenSeat;
+  /** Hold round 1 until both sides have sent a command, or readyTimeoutMs elapses. */
+  startWhenReady?: boolean;
+  /** Wall-clock budget for startWhenReady. Default 90s, clamped 5s–5min. */
+  readyTimeoutMs?: number;
 }
 
 export interface CreateMatchResponse {
@@ -199,6 +208,8 @@ export interface CreateMatchResponse {
   p1: { controller: string; character: string; bot: string };
   p2: { controller: string; character: string; bot: string };
   openSeat?: OpenSeat;
+  startWhenReady?: boolean;
+  readyTimeoutMs?: number;
   /** Present only on the create response. Never stored in the repo or re-fetched. */
   secrets?: {
     p1Code: string;
