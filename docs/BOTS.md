@@ -56,6 +56,6 @@ rusher 20-0 turtler, utility 20-0 turtler, turtler 20-0 zoner; rusher/utility/zo
 | id | name | style |
 | --- | --- | --- |
 | `lumi` | Lumi | Lumi's own fighter: spacing, interrupts, recovery punishes, anti-airs, pattern memory. |
-| `gpt6` | GPT-6 | Slot for GPT-6's fighter (`src/bots/gpt6.ts`). Placeholder until the real file is dropped with `export const ready = true`. |
+| `gpt6` | Vanta Coil | GPT-6's own fighter. |
 
-These two are not in the auto-play / ladder `BUILTIN_BOTS` list. Open `?duel=lumi-gpt6` for a first-to-3 featured set. The page shows "waiting for GPT-6's fighter" until the slot is ready. When wiring the real bot, replace `src/bots/gpt6.ts`, keep `id` / `name` / `author` / `createGpt6Bot` / `default`, and set `ready = true`.
+These two are not in the auto-play / ladder `BUILTIN_BOTS` list. Open `/?duel=lumi-gpt6` for a first-to-3 featured set (optional `?seed=N` pins the first match; otherwise the seed varies per visit). The HUD shows **Lumi** and **Vanta Coil (GPT-6)** plus a running head-to-head.

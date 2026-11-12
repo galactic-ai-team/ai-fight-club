@@ -4,17 +4,25 @@ import { ready as gpt6FileReady, name as gpt6Name } from "../src/bots/gpt6.ts";
 import { runMatch } from "../src/engine/run.ts";
 import { createMatch } from "../src/engine/sim.ts";
 import { observe } from "../src/engine/observe.ts";
-import { NEUTRAL_ACTION } from "../src/engine/types.ts";
 import {
   DUEL_TITLE,
+  GPT6_DISPLAY_NAME,
+  LUMI_DISPLAY_NAME,
   WAITING_MESSAGE,
   applyDuelMatch,
+  applyHeadToHead,
   duelScoreLine,
+  duelSeedFromSearch,
   duelStatusLine,
   emptyDuelSet,
+  emptyHeadToHead,
   gpt6IsReady,
+  headToHeadLine,
   hudName,
   isDuelQuery,
+  loadHeadToHead,
+  newVisitSeed,
+  saveHeadToHead,
   winnerToDuelFighter,
 } from "../src/spectator/duel.ts";
 
@@ -47,29 +55,66 @@ describe("duel query and set score", () => {
 
   it("labels the waiting state and HUD names", () => {
     expect(DUEL_TITLE).toBe("Featured: Lumi vs GPT-6");
+    expect(LUMI_DISPLAY_NAME).toBe("Lumi");
+    expect(GPT6_DISPLAY_NAME).toBe("Vanta Coil (GPT-6)");
     expect(duelStatusLine({ ready: false, set: emptyDuelSet() })).toBe(WAITING_MESSAGE);
     expect(duelStatusLine({ ready: true, set: emptyDuelSet(), live: true })).toBe(
       "First to 3 · match 1",
     );
     expect(hudName("lumi", "Ion")).toBe("Ion · Lumi");
-    expect(hudName("gpt6", "Quark")).toBe("Quark · GPT-6");
+    expect(hudName("gpt6", "Quark")).toBe("Quark · Vanta Coil (GPT-6)");
     expect(winnerToDuelFighter("p1", "p1")).toBe("lumi");
     expect(winnerToDuelFighter("p2", "p1")).toBe("gpt6");
   });
+
+  it("pins ?seed=N and otherwise varies the visit seed", () => {
+    expect(duelSeedFromSearch("?duel=lumi-gpt6")).toBeNull();
+    expect(duelSeedFromSearch("?duel=lumi-gpt6&seed=42")).toBe(42);
+    expect(duelSeedFromSearch("seed=7")).toBe(7);
+    expect(duelSeedFromSearch("?seed=nope")).toBeNull();
+    expect(newVisitSeed(1_700_000_000_123)).toBe((1_700_000_000_123 >>> 0) % 2_000_000_000);
+    expect(newVisitSeed(1_700_000_000_123)).not.toBe(newVisitSeed(1_700_000_000_999));
+    expect(newVisitSeed(0)).toBe(1);
+  });
+
+  it("tracks a running head-to-head record", () => {
+    let h2h = emptyHeadToHead();
+    h2h = applyHeadToHead(h2h, "gpt6");
+    h2h = applyHeadToHead(h2h, "gpt6");
+    h2h = applyHeadToHead(h2h, "lumi");
+    expect(headToHeadLine(h2h)).toBe("Head-to-head: Lumi 1 – 2 Vanta Coil (GPT-6)");
+    const store: Record<string, string> = {};
+    saveHeadToHead(
+      { setItem: (k, v) => { store[k] = v; } },
+      h2h,
+    );
+    expect(loadHeadToHead({ getItem: (k) => store[k] ?? null })).toEqual(h2h);
+    expect(loadHeadToHead({ getItem: () => null })).toEqual(emptyHeadToHead());
+  });
 });
 
-describe("gpt6 placeholder slot", () => {
-  it("is clearly labeled and not ready", () => {
-    expect(gpt6FileReady).toBe(false);
-    expect(gpt6Ready).toBe(false);
-    expect(gpt6IsReady()).toBe(false);
-    expect(gpt6Name).toMatch(/waiting/i);
+describe("gpt6 fighter slot", () => {
+  it("is ready and named Vanta Coil", () => {
+    expect(gpt6FileReady).toBe(true);
+    expect(gpt6Ready).toBe(true);
+    expect(gpt6IsReady()).toBe(true);
+    expect(gpt6Name).toBe("Vanta Coil");
     const bot = createGpt6Bot();
     expect(bot.id).toBe("gpt6");
-    expect(bot.name).toMatch(/waiting/i);
-    const s = createMatch({ seed: 1 });
-    expect(bot.act(observe(s, "p2"))).toEqual(NEUTRAL_ACTION);
+    expect(bot.name).toBe("Vanta Coil");
     expect(createBot("gpt6").id).toBe("gpt6");
+  });
+
+  it("is deterministic for a given observation stream", () => {
+    const a = createGpt6Bot();
+    const b = createGpt6Bot();
+    a.start?.({ side: "p2", seed: 11, opponentId: "lumi" });
+    b.start?.({ side: "p2", seed: 11, opponentId: "lumi" });
+    const s = createMatch({ seed: 11 });
+    for (let i = 0; i < 80; i++) {
+      const obs = observe(s, "p2");
+      expect(a.act(obs)).toEqual(b.act(obs));
+    }
   });
 });
 

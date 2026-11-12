@@ -6,7 +6,7 @@ export const DUEL_WINS_NEEDED = 3;
 export const LUMI_BOT_ID = "lumi";
 export const GPT6_BOT_ID = "gpt6";
 export const LUMI_DISPLAY_NAME = "Lumi";
-export const GPT6_DISPLAY_NAME = "GPT-6";
+export const GPT6_DISPLAY_NAME = "Vanta Coil (GPT-6)";
 export const WAITING_MESSAGE = "waiting for GPT-6's fighter";
 export const DUEL_TITLE = "Featured: Lumi vs GPT-6";
 
@@ -86,4 +86,62 @@ export function winnerToDuelFighter(
 export function hudName(side: "lumi" | "gpt6", character: string): string {
   const who = side === "lumi" ? LUMI_DISPLAY_NAME : GPT6_DISPLAY_NAME;
   return `${character} · ${who}`;
+}
+
+export interface HeadToHead {
+  lumiWins: number;
+  gpt6Wins: number;
+}
+
+export const H2H_STORAGE_KEY = "afc-duel-h2h-v1";
+
+export function emptyHeadToHead(): HeadToHead {
+  return { lumiWins: 0, gpt6Wins: 0 };
+}
+
+export function applyHeadToHead(h2h: HeadToHead, winner: DuelFighter): HeadToHead {
+  if (winner === "lumi") return { lumiWins: h2h.lumiWins + 1, gpt6Wins: h2h.gpt6Wins };
+  return { lumiWins: h2h.lumiWins, gpt6Wins: h2h.gpt6Wins + 1 };
+}
+
+export function headToHeadLine(h2h: HeadToHead): string {
+  return `Head-to-head: Lumi ${h2h.lumiWins} – ${h2h.gpt6Wins} ${GPT6_DISPLAY_NAME}`;
+}
+
+export function loadHeadToHead(storage: Pick<Storage, "getItem"> | null): HeadToHead {
+  try {
+    const raw = storage?.getItem(H2H_STORAGE_KEY);
+    if (!raw) return emptyHeadToHead();
+    const parsed = JSON.parse(raw) as { lumiWins?: unknown; gpt6Wins?: unknown };
+    if (typeof parsed.lumiWins === "number" && typeof parsed.gpt6Wins === "number") {
+      return { lumiWins: parsed.lumiWins | 0, gpt6Wins: parsed.gpt6Wins | 0 };
+    }
+  } catch {
+    // ignore bad or missing storage
+  }
+  return emptyHeadToHead();
+}
+
+export function saveHeadToHead(storage: Pick<Storage, "setItem"> | null, h2h: HeadToHead): void {
+  try {
+    storage?.setItem(H2H_STORAGE_KEY, JSON.stringify(h2h));
+  } catch {
+    // ignore quota / private-mode failures
+  }
+}
+
+/** `?seed=N` pins the first match. Otherwise the caller supplies a per-visit fallback. */
+export function duelSeedFromSearch(search: string): number | null {
+  const raw = search.startsWith("?") ? search.slice(1) : search;
+  const value = new URLSearchParams(raw).get("seed");
+  if (value === null || value.trim() === "") return null;
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  return n | 0;
+}
+
+/** Vary the featured-set seed per visit while staying in a stable 32-bit range. */
+export function newVisitSeed(nowMs: number): number {
+  const n = (nowMs >>> 0) % 2_000_000_000;
+  return n === 0 ? 1 : n;
 }

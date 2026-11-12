@@ -239,6 +239,12 @@ label.autoplay-toggle input[type="checkbox"] {
 .duel-scoreline .duel-name.p1 { color: var(--p1); }
 .duel-scoreline .duel-name.p2 { color: var(--p2); }
 #duel-score { min-width: 4.5ch; }
+.duel-h2h {
+  margin-top: 6px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+}
 .duel-status {
   margin-top: 6px;
   color: var(--muted);
@@ -248,6 +254,8 @@ label.autoplay-toggle input[type="checkbox"] {
 .duel-status.over { color: var(--ok); font-weight: 700; }
 body.duel-mode #controls .duel-lock { opacity: 0.85; }
 @media (max-width: 700px) {
-  .duel-scoreline { font-size: 18px; gap: 10px; }
+  .duel-scoreline { font-size: 16px; gap: 8px; flex-wrap: wrap; }
+  .duel-scoreline .duel-name { font-size: 14px; }
   .duel-title { font-size: 12px; }
+  .duel-h2h { font-size: 12px; }
 }
