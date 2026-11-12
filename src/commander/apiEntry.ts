@@ -44,8 +44,19 @@ function queryOf(req: VercelReq): Record<string, string> {
 }
 
 function pathOf(req: VercelReq): string {
+  const q = queryOf(req);
+  // vercel.json rewrites /api/match/:id/:verb onto this single function.
+  if (q.id && q.verb) return `/api/match/${q.id}/${q.verb}`;
+  if (q.id && !q.verb) {
+    const raw = (req.url ?? "/").split("?")[0] ?? "/";
+    // If the raw path already has a verb (no rewrite), prefer it.
+    const parts = raw.split("/").filter(Boolean);
+    if (parts[0] === "api" && parts[1] === "match" && parts[3]) {
+      return raw;
+    }
+    return `/api/match/${q.id}`;
+  }
   const raw = (req.url ?? "/").split("?")[0] ?? "/";
-  // Vercel may pass /match/id/command when this file is at api/[[...path]]
   if (raw.startsWith("/api/")) return raw;
   return "/api" + (raw.startsWith("/") ? raw : `/${raw}`);
 }

@@ -13,7 +13,7 @@
     "test:watch": "vitest",
     "ladder": "npx tsx scripts/run-ladder.ts",
     "commander": "npx tsx scripts/commander.ts",
-    "build:api": "esbuild src/commander/apiEntry.ts --bundle --platform=node --format=esm --outfile=api/[...path].js --legal-comments=none"
+    "build:api": "node scripts/build-api.mjs"
   },
   "devDependencies": {
     "typescript": "^5.9.3",
