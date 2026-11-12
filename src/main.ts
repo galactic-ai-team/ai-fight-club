@@ -326,6 +326,9 @@ const leaderboard = bootLeaderboard();
 const artBoard = mountSpectatorArtBoard(
   leaderboard ? { getTable: () => leaderboard.getTable() } : null,
 );
+document.getElementById("leaderboard-root")?.addEventListener("afc-leaderboard-change", () => {
+  artBoard?.refresh();
+});
 
 autoplayBox?.addEventListener("change", () => {
   if (autoPlayEnabled()) {

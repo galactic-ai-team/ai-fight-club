@@ -166,6 +166,12 @@ export function mountLeaderboard(root: HTMLElement): LeaderboardHandle {
   root.appendChild(section);
 
   const paint = (): void => {
+    // Gemini mounts `.afc-lb-shell` into this host. Replacing innerHTML would
+    // destroy the pixel-art standings after recordMatch / Run / Reset.
+    if (tableHost.querySelector(".afc-lb-shell")) {
+      tableHost.dispatchEvent(new CustomEvent("afc-leaderboard-change", { bubbles: true }));
+      return;
+    }
     const rows = table.entries.map((e, i) => rowHtml(e, i + 1)).join("");
     tableHost.innerHTML = `
       <table>
