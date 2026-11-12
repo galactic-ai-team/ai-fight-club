@@ -5,6 +5,20 @@ import {
   pairingAt,
 } from "./spectator/autoplay.ts";
 import {
+  GPT6_BOT_ID,
+  LUMI_BOT_ID,
+  WAITING_MESSAGE,
+  applyDuelMatch,
+  duelScoreLine,
+  duelStatusLine,
+  emptyDuelSet,
+  gpt6IsReady,
+  hudName,
+  isDuelQuery,
+  winnerToDuelFighter,
+  type DuelSetState,
+} from "./spectator/duel.ts";
+import {
   commentOnEvents,
   matchStartLine,
   type CommentaryContext,
@@ -48,6 +62,14 @@ const p2CharSel = document.querySelector<HTMLSelectElement>("#p2-char");
 const seedInput = document.querySelector<HTMLInputElement>("#seed")!;
 const autoplayBox = document.querySelector<HTMLInputElement>("#autoplay");
 const autoplayStatus = document.querySelector<HTMLDivElement>("#autoplay-status");
+const tagline = document.querySelector<HTMLParagraphElement>("#tagline");
+const duelBanner = document.querySelector<HTMLDivElement>("#duel-banner");
+const duelScoreEl = document.querySelector<HTMLSpanElement>("#duel-score");
+const duelStatusEl = document.querySelector<HTMLDivElement>("#duel-status");
+
+const duelMode = isDuelQuery(window.location.search);
+let duelSet: DuelSetState = emptyDuelSet();
+let duelWaiting = duelMode && !gpt6IsReady();
 
 const ctx = canvas.getContext("2d")!;
 resizeCanvas(canvas);
@@ -180,8 +202,81 @@ function renderHud(state: MatchState): void {
   roundsEl.innerHTML = `${p1dots}&nbsp;R${state.round.number}&nbsp;${p2dots}`;
 }
 
+function refreshDuelHud(live = false): void {
+  if (!duelMode) return;
+  if (duelScoreEl) duelScoreEl.textContent = duelScoreLine(duelSet);
+  if (duelStatusEl) {
+    const waiting = duelWaiting || !gpt6IsReady();
+    duelStatusEl.textContent = waiting
+      ? WAITING_MESSAGE
+      : duelStatusLine({ ready: true, set: duelSet, live });
+    duelStatusEl.classList.toggle("waiting", waiting);
+    duelStatusEl.classList.toggle("over", duelSet.over);
+  }
+}
+
+function lockDuelControls(): void {
+  if (!duelMode) return;
+  document.body.classList.add("duel-mode");
+  if (duelBanner) duelBanner.hidden = false;
+  if (tagline) {
+    tagline.textContent = gpt6IsReady()
+      ? "Featured first-to-3 set. Lumi and GPT-6 each wrote their own fighter. Nothing is scripted."
+      : "Featured first-to-3 set. Lumi is ready. GPT-6's fighter has not been dropped in yet.";
+  }
+  document.title = "AI Fight Club — Featured: Lumi vs GPT-6";
+  applyPairing(LUMI_BOT_ID, GPT6_BOT_ID, "Ion", "Quark");
+  p1Sel.disabled = true;
+  p2Sel.disabled = true;
+  p1Sel.closest("label")?.classList.add("duel-lock");
+  p2Sel.closest("label")?.classList.add("duel-lock");
+  if (autoplayBox) {
+    autoplayBox.checked = false;
+    autoplayBox.disabled = true;
+  }
+}
+
+function showWaitingStage(): void {
+  clearNextTimer();
+  duelWaiting = true;
+  const seed = Number(seedInput.value) || 1;
+  applyPairing(LUMI_BOT_ID, GPT6_BOT_ID, "Ion", "Quark");
+  match = createMatch({
+    seed,
+    p1Character: selectedCharacter(p1CharSel, "Ion"),
+    p2Character: selectedCharacter(p2CharSel, "Quark"),
+  });
+  bots = null;
+  replay = null;
+  playing = false;
+  p1Name.textContent = hudName("lumi", match.p1.character);
+  p2Name.textContent = hudName("gpt6", match.p2.character);
+  paintPortraits(match.p1.character, match.p2.character);
+  resetLog();
+  logLine(WAITING_MESSAGE, "start");
+  momentEl.textContent = WAITING_MESSAGE;
+  momentEl.classList.remove("danger");
+  downloadBtn.disabled = true;
+  pauseBtn.textContent = "Pause";
+  refreshDuelHud(false);
+  setAutoStatus(WAITING_MESSAGE);
+}
+
 function startMatch(): void {
   clearNextTimer();
+  if (duelMode && !gpt6IsReady()) {
+    showWaitingStage();
+    return;
+  }
+  if (duelMode) {
+    duelWaiting = false;
+    applyPairing(
+      LUMI_BOT_ID,
+      GPT6_BOT_ID,
+      selectedCharacter(p1CharSel, "Ion"),
+      selectedCharacter(p2CharSel, "Quark"),
+    );
+  }
   const seed = Number(seedInput.value) || 1;
   const p1 = createBot(p1Sel.value);
   const p2 = createBot(p2Sel.value);
@@ -198,8 +293,8 @@ function startMatch(): void {
   });
   p1.start?.({ side: "p1", seed, opponentId: p2.id });
   p2.start?.({ side: "p2", seed, opponentId: p1.id });
-  p1Name.textContent = `${match.p1.character} · ${p1.name}`;
-  p2Name.textContent = `${match.p2.character} · ${p2.name}`;
+  p1Name.textContent = duelMode ? hudName("lumi", match.p1.character) : `${match.p1.character} · ${p1.name}`;
+  p2Name.textContent = duelMode ? hudName("gpt6", match.p2.character) : `${match.p2.character} · ${p2.name}`;
   paintPortraits(match.p1.character, match.p2.character);
   resetLog();
   logLine(
@@ -215,6 +310,10 @@ function startMatch(): void {
   last = performance.now();
   downloadBtn.disabled = true;
   pauseBtn.textContent = "Pause";
+  if (duelMode) {
+    refreshDuelHud(true);
+    setAutoStatus(duelStatusLine({ ready: true, set: duelSet, live: true }));
+  }
 }
 
 function tick(): void {
@@ -238,7 +337,11 @@ function tick(): void {
     playing = false;
     downloadBtn.disabled = false;
     logLine(`Match over in ${match.tick} ticks.`, "match_end");
-    if (match.matchWinner === "p1" || match.matchWinner === "p2") {
+    if (duelMode && (match.matchWinner === "p1" || match.matchWinner === "p2")) {
+      duelSet = applyDuelMatch(duelSet, winnerToDuelFighter(match.matchWinner, "p1"));
+      refreshDuelHud(false);
+      logLine(`Set score: Lumi ${duelSet.lumiWins} – ${duelSet.gpt6Wins} GPT-6`, "match_end");
+    } else if (match.matchWinner === "p1" || match.matchWinner === "p2") {
       leaderboard?.recordMatch({
         seed: replay.seed,
         p1: bots.p1.id,
@@ -276,6 +379,24 @@ function frame(now: number): void {
 
 function scheduleNextMatch(): void {
   clearNextTimer();
+  if (duelMode) {
+    if (!gpt6IsReady()) {
+      showWaitingStage();
+      return;
+    }
+    if (duelSet.over) {
+      refreshDuelHud(false);
+      setAutoStatus(duelStatusLine({ ready: true, set: duelSet }));
+      return;
+    }
+    const secs = NEXT_MATCH_DELAY_MS / 1000;
+    setAutoStatus(`Next set match in ${secs}s · Lumi ${duelScoreLine(duelSet)} GPT-6`);
+    nextTimer = window.setTimeout(() => {
+      seedInput.value = String((Number(seedInput.value) || 1) + 1);
+      startMatch();
+    }, NEXT_MATCH_DELAY_MS);
+    return;
+  }
   if (!autoPlayEnabled()) {
     setAutoStatus("Auto-play off. Pick two fighters and hit Fight to restart.");
     return;
@@ -296,6 +417,10 @@ function scheduleNextMatch(): void {
 form.addEventListener("submit", (e) => {
   e.preventDefault();
   clearNextTimer();
+  if (duelMode && duelSet.over) {
+    duelSet = emptyDuelSet();
+    refreshDuelHud(false);
+  }
   startMatch();
   setAutoStatus(
     autoPlayEnabled()
@@ -305,7 +430,7 @@ form.addEventListener("submit", (e) => {
 });
 
 pauseBtn.addEventListener("click", () => {
-  if (!match || match.over) return;
+  if (!match || match.over || duelWaiting || !bots) return;
   playing = !playing;
   pauseBtn.textContent = playing ? "Pause" : "Resume";
   last = performance.now();
@@ -341,7 +466,16 @@ autoplayBox?.addEventListener("change", () => {
 });
 
 // Auto-start a live bot-vs-bot match on load, then cycle a round-robin.
-{
+// Featured mode (`?duel=lumi-gpt6`) plays a first-to-3 set instead, or waits
+// for GPT-6's fighter if the placeholder is still in the slot.
+if (duelMode) {
+  lockDuelControls();
+  if (gpt6IsReady()) {
+    startMatch();
+  } else {
+    showWaitingStage();
+  }
+} else {
   const [p1Bot, p2Bot] = pairingAt(0);
   const [p1Char, p2Char] = characterPairAt(0);
   applyPairing(p1Bot, p2Bot, p1Char, p2Char);

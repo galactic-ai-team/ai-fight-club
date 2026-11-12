@@ -209,3 +209,45 @@ label.autoplay-toggle input[type="checkbox"] {
   margin: 6px 0 0;
   accent-color: var(--accent);
 }
+
+/* Featured Lumi vs GPT-6 set (`?duel=lumi-gpt6`). */
+.duel-banner {
+  margin: 12px 0 16px;
+  padding: 12px 14px;
+  background: var(--panel);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  text-align: center;
+}
+.duel-banner[hidden] { display: none; }
+.duel-title {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+.duel-scoreline {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: 16px;
+  font-size: 22px;
+  font-weight: 700;
+}
+.duel-scoreline .duel-name.p1 { color: var(--p1); }
+.duel-scoreline .duel-name.p2 { color: var(--p2); }
+#duel-score { min-width: 4.5ch; }
+.duel-status {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.duel-status.waiting { color: var(--p2); font-weight: 700; }
+.duel-status.over { color: var(--ok); font-weight: 700; }
+body.duel-mode #controls .duel-lock { opacity: 0.85; }
+@media (max-width: 700px) {
+  .duel-scoreline { font-size: 18px; gap: 10px; }
+  .duel-title { font-size: 12px; }
+}

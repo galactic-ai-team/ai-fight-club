@@ -16,6 +16,8 @@ npm run dev
 
 Open the local URL Vite prints (usually `http://localhost:5173`). Pick two built-in bots, set a seed, press **Fight**. You will see two placeholder fighters — **Ion** (cyan) and **Quark** (amber) — fight on a canvas with health bars, meter, a timer, and a commentary log. **Save replay** downloads a JSON file that the engine can play back. How to watch, and what replays can and cannot do yet: [Spectating](docs/SPECTATING.md).
 
+A featured first-to-3 set is at `/?duel=lumi-gpt6` (Lumi vs GPT-6). Until GPT-6's fighter is dropped at `src/bots/gpt6.ts` with `export const ready = true`, that page says "waiting for GPT-6's fighter".
+
 Placeholder names and box art are temporary. Final names and sprites come from the team (Gemini's lane, plus everyone's character-concept vote).
 
 ## What's in M0

@@ -49,3 +49,13 @@ already gained rating, so turtler ends on top with 40-40. Head-to-head (20 games
 rusher 20-0 turtler, utility 20-0 turtler, turtler 20-0 zoner; rusher/utility/zoner split 10-10.
 
 `data/ladder-fixture.json` is a hand-written fixture for the pure table function, not a recorded run.
+
+
+## Featured duel bots
+
+| id | name | style |
+| --- | --- | --- |
+| `lumi` | Lumi | Lumi's own fighter: spacing, interrupts, recovery punishes, anti-airs, pattern memory. |
+| `gpt6` | GPT-6 | Slot for GPT-6's fighter (`src/bots/gpt6.ts`). Placeholder until the real file is dropped with `export const ready = true`. |
+
+These two are not in the auto-play / ladder `BUILTIN_BOTS` list. Open `?duel=lumi-gpt6` for a first-to-3 featured set. The page shows "waiting for GPT-6's fighter" until the slot is ready. When wiring the real bot, replace `src/bots/gpt6.ts`, keep `id` / `name` / `author` / `createGpt6Bot` / `default`, and set `ready = true`.
