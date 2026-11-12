@@ -2,9 +2,12 @@ import { hashToken, newHostToken, newJoinCode, randomMatchId, tokensMatch } from
 import { parseCommand } from "./parse.ts";
 import {
   isWindowMode,
+  parseOpenSeat,
+  seatIsOpen,
   type CommandRecord,
   type CreateMatchRequest,
   type MatchPublicState,
+  type OpenSeat,
   type PublicMatchListItem,
   type WindowMode,
 } from "./types.ts";
@@ -13,6 +16,8 @@ export const DEFAULT_TTL_MS = 2 * 60 * 60 * 1000;
 export const MAX_TTL_MS = 24 * 60 * 60 * 1000;
 export const STALE_HOST_MS = 15_000;
 export const MAX_TAUNT_COMMANDS_PER_SEC = 8;
+/** Unauthenticated open-seat commands (GET /cmd) are capped tighter. */
+export const OPEN_SEAT_COMMANDS_PER_SEC = 1;
 
 export interface StoredMatch {
   id: string;
@@ -26,6 +31,8 @@ export interface StoredMatch {
   p2Character: string;
   p1Controller: string;
   p2Controller: string;
+  /** Which seats accept commands with no join code, for this match only. */
+  openSeat: OpenSeat;
   p1CodeHash: string;
   p2CodeHash: string;
   hostTokenHash: string;
@@ -100,6 +107,7 @@ export function toListItem(m: StoredMatch, nowMs: number): PublicMatchListItem {
     score,
     tick: m.publicState?.tick ?? 0,
     windowMode: m.windowMode,
+    openSeat: m.openSeat ?? "none",
     watchPath: `/watch.html?m=${encodeURIComponent(m.id)}`,
     updatedAtMs: m.publicState?.updatedAtMs ?? m.createdAtMs,
   };
@@ -111,6 +119,7 @@ export function publicView(m: StoredMatch, nowMs: number): Record<string, unknow
     id: m.id,
     seed: m.seed,
     window: m.windowMode,
+    openSeat: m.openSeat ?? "none",
     p1: { controller: m.p1Controller, character: m.p1Character, bot: m.p1Bot },
     p2: { controller: m.p2Controller, character: m.p2Character, bot: m.p2Bot },
     status: item.status,
@@ -123,6 +132,7 @@ export function publicView(m: StoredMatch, nowMs: number): Record<string, unknow
 }
 
 function freshness(m: StoredMatch, nowMs: number): StoredMatch {
+  if (!m.openSeat) m = { ...m, openSeat: "none" };
   if (nowMs > m.expiresAtMs) {
     return { ...m, status: m.status === "ended" ? "ended" : "stale" };
   }
@@ -145,6 +155,7 @@ export class MemoryStore implements MatchStore {
     const p2Code = newJoinCode();
     const hostToken = newHostToken();
     const windowMode: WindowMode = isWindowMode(input.window) ? input.window : "5s";
+    const openSeat: OpenSeat = parseOpenSeat(input.openSeat) ?? "none";
     const record: StoredMatch = {
       id,
       createdAtMs: nowMs,
@@ -157,6 +168,7 @@ export class MemoryStore implements MatchStore {
       p2Character: (input.p2Character ?? "Quark").slice(0, 40),
       p1Controller: (input.p1Controller ?? "Lumi").slice(0, 40),
       p2Controller: (input.p2Controller ?? "GPT-6").slice(0, 40),
+      openSeat,
       p1CodeHash: await hashToken(p1Code),
       p2CodeHash: await hashToken(p2Code),
       hostTokenHash: await hashToken(hostToken),
@@ -222,16 +234,26 @@ export class MemoryStore implements MatchStore {
     nowMs = Date.now(),
   ): Promise<CommandRecord> {
     const m = await this.requireMatch(id, nowMs);
-    const expected = side === "p1" ? m.p1CodeHash : m.p2CodeHash;
-    if (!(await tokensMatch(code, expected))) {
-      throw new StoreError(401, "invalid join code");
+    const open = seatIsOpen(m.openSeat, side);
+    const hasCode = typeof code === "string" && code.length > 0;
+    let authed = false;
+    if (hasCode) {
+      const expected = side === "p1" ? m.p1CodeHash : m.p2CodeHash;
+      authed = await tokensMatch(code, expected);
+    }
+    // Open seats may be commanded with no code. A bad code on an open seat
+    // still succeeds so we do not leak whether a hash matched.
+    if (!authed && !open) {
+      throw new StoreError(401, hasCode ? "invalid join code" : "join code required");
     }
     const parsed = parseCommand(rawCommand);
     if (!parsed.ok) throw new StoreError(400, parsed.error);
 
-    // Rate-limit: reject if too many commands from this side in the last second.
+    // Authenticated POST keeps the original cap; unauthenticated open-seat
+    // commands (including GET /cmd) are limited to 1 per second per side.
+    const maxPerSec = authed ? MAX_TAUNT_COMMANDS_PER_SEC : OPEN_SEAT_COMMANDS_PER_SEC;
     const recent = m.log.filter((c) => c.side === side && nowMs - c.receivedAtMs < 1000);
-    if (recent.length >= MAX_TAUNT_COMMANDS_PER_SEC) {
+    if (recent.length >= maxPerSec) {
       throw new StoreError(429, "too many commands, slow down");
     }
 

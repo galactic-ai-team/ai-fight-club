@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_DIRECTIVE,
   WINDOW_PAUSE_MS,
+  WAIT_FOR_BOTH_PAUSE_MS,
+  pauseMs,
   clampAggression,
   clampSpacing,
   closeWindow,
@@ -192,6 +194,25 @@ describe("decision window timing", () => {
     expect(snap.open).toBe(true);
     expect(snap.remainingMs).toBe(WINDOW_PAUSE_MS - 1000);
     expect(snap.index).toBe(2);
+  });
+
+  it("5s-wait uses the 5s interval but holds up to 45s, and still closes early when both submit", () => {
+    expect(intervalTicks("5s-wait")).toBe(300);
+    expect(nextWindowTick(0, "5s-wait")).toBe(300);
+    expect(pauseMs("5s-wait")).toBe(WAIT_FOR_BOTH_PAUSE_MS);
+    expect(pauseMs("5s")).toBe(WINDOW_PAUSE_MS);
+    const w = createWindowState("5s-wait");
+    expect(shouldOpenWindow(300, w)).toBe(true);
+    openWindow(w, 300, 10_000);
+    expect(remainingMs(w, 10_000)).toBe(WAIT_FOR_BOTH_PAUSE_MS);
+    markSubmitted(w, "p1");
+    expect(shouldCloseWindow(w, 10_000 + 10_000)).toBe(false);
+    markSubmitted(w, "p2");
+    expect(shouldCloseWindow(w, 10_000 + 10_000)).toBe(true);
+    closeWindow(w);
+    openWindow(w, 600, 60_000);
+    expect(shouldCloseWindow(w, 60_000 + WAIT_FOR_BOTH_PAUSE_MS - 1)).toBe(false);
+    expect(shouldCloseWindow(w, 60_000 + WAIT_FOR_BOTH_PAUSE_MS)).toBe(true);
   });
 });
 

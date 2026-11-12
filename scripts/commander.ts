@@ -70,7 +70,9 @@ Options:
   --fighter p1|p2
   --text "STANCE rush"   Raw command grammar (also stdin if --text -)
   --stance --spacing --aggression --gofor --taunt
-  --window off|3s|5s     (create)
+  --window off|3s|5s|5s-wait  (create)
+  --wait-for-both       Hold each 5s window until both command, or 45s
+  --open-seat none|p1|p2|both   Mark a seat commandable with no join code
   --seed --p1-name --p2-name --p1-char --p2-char --p1-bot --p2-bot
   --ttl <seconds>
 
@@ -135,7 +137,7 @@ async function cmdCreate(): Promise<void> {
   if (!file) die("create requires --code-file <path> (join codes are written there, never printed)");
   const body = {
     seed: Number(arg("--seed") ?? Date.now() % 1_000_000_000),
-    window: arg("--window") ?? "5s",
+    window: flag("--wait-for-both") ? "5s-wait" : (arg("--window") ?? "5s"),
     p1Controller: arg("--p1-name") ?? "Lumi",
     p2Controller: arg("--p2-name") ?? "GPT-6",
     p1Character: arg("--p1-char") ?? "Ion",
@@ -143,6 +145,7 @@ async function cmdCreate(): Promise<void> {
     p1Bot: arg("--p1-bot") ?? "rusher",
     p2Bot: arg("--p2-bot") ?? "zoner",
     ttlSeconds: arg("--ttl") ? Number(arg("--ttl")) : undefined,
+    openSeat: arg("--open-seat") ?? "none",
   };
   const { body: res } = await request("/api/match", { method: "POST", body: JSON.stringify(body) });
   const r = res as {
@@ -150,6 +153,7 @@ async function cmdCreate(): Promise<void> {
     watchPath: string;
     relayPath: string;
     window: string;
+    openSeat?: string;
     seed: number;
     expiresAt: string;
     p1: { controller: string };
@@ -177,7 +181,7 @@ async function cmdCreate(): Promise<void> {
   console.log(`watch ${secrets.watchUrl}`);
   console.log(`relay ${secrets.relayUrl}`);
   console.log(`window ${r.window}  seed ${r.seed}  expires ${r.expiresAt}`);
-  console.log(`p1 ${r.p1.controller}  p2 ${r.p2.controller}`);
+  console.log(`p1 ${r.p1.controller}  p2 ${r.p2.controller}  openSeat ${r.openSeat ?? "none"}`);
   console.log(`join codes and host token written to ${resolve(file)} (mode 0600, not printed)`);
 }
 

@@ -1,8 +1,14 @@
 import { TICK_HZ } from "../engine/constants.ts";
 import type { WindowMode, WindowSnapshot } from "./types.ts";
 
-/** Wall-clock pause, in ms, that a decision window stays open. */
+/** Wall-clock pause, in ms, that a standard 3s/5s decision window stays open. */
 export const WINDOW_PAUSE_MS = 2500;
+/** Wait-for-both windows stay open until both sides submit, or this timeout. */
+export const WAIT_FOR_BOTH_PAUSE_MS = 45_000;
+
+export function pauseMs(mode: WindowMode): number {
+  return mode === "5s-wait" ? WAIT_FOR_BOTH_PAUSE_MS : WINDOW_PAUSE_MS;
+}
 
 export function intervalTicks(mode: WindowMode): number | null {
   if (mode === "off") return null;
@@ -60,7 +66,7 @@ export function openWindow(w: DecisionWindowState, tick: number, nowMs: number):
   w.openedAtTick = tick;
   w.lastOpenedTick = tick;
   w.openedAtMs = nowMs;
-  w.closesAtMs = nowMs + WINDOW_PAUSE_MS;
+  w.closesAtMs = nowMs + pauseMs(w.mode);
   w.p1Submitted = false;
   w.p2Submitted = false;
 }

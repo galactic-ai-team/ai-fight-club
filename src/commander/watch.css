@@ -50,6 +50,14 @@ nav a[aria-current="page"] { color: var(--accent); font-weight: 700; }
   color: var(--ok);
 }
 .badge.live { background: rgba(93, 255, 176, 0.12); }
+.badge.open-seat {
+  background: rgba(255, 200, 80, 0.16);
+  color: #ffc850;
+  border-color: rgba(255, 200, 80, 0.55);
+  margin-left: 6px;
+  vertical-align: middle;
+  letter-spacing: 0.1em;
+}
 
 #hud {
   display: grid;

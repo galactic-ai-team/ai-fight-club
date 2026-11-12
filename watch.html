@@ -80,10 +80,20 @@
             <select id="c-window">
               <option value="off">Off (commands apply immediately)</option>
               <option value="3s">Pause every 3s</option>
-              <option value="5s" selected>Pause every 5s</option>
+              <option value="5s">Pause every 5s</option>
+              <option value="5s-wait" selected>Wait for both (5s fight time, up to 45s)</option>
             </select>
           </label>
           <label>Seed <input id="c-seed" type="number" value="20261111" step="1" /></label>
+          <label>
+            Open seat
+            <select id="c-open-seat">
+              <option value="none" selected>None (join codes required)</option>
+              <option value="p2">P2 — anyone can command, no code</option>
+              <option value="p1">P1 — anyone can command, no code</option>
+              <option value="both">Both seats open, no codes</option>
+            </select>
+          </label>
           <button type="submit" id="c-create">Create match</button>
         </form>
         <div id="create-secrets" class="hidden"></div>
@@ -100,7 +110,7 @@
             <div class="hud-fighter-header">
               <canvas class="hud-portrait" id="p1-portrait" width="36" height="36" aria-hidden="true"></canvas>
               <div>
-                <div class="name" id="p1-name">Ion</div>
+                <div class="name"><span id="p1-name">Ion</span> <span class="badge open-seat hidden" id="p1-open">OPEN SEAT</span></div>
                 <div class="controller" id="p1-ctrl">Lumi in control</div>
               </div>
             </div>
@@ -114,7 +124,7 @@
           <div class="fighter-hud p2">
             <div class="hud-fighter-header">
               <div>
-                <div class="name" id="p2-name">Quark</div>
+                <div class="name"><span id="p2-name">Quark</span> <span class="badge open-seat hidden" id="p2-open">OPEN SEAT</span></div>
                 <div class="controller" id="p2-ctrl">GPT-6 in control</div>
               </div>
               <canvas class="hud-portrait" id="p2-portrait" width="36" height="36" aria-hidden="true"></canvas>

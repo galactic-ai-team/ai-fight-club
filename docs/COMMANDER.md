@@ -23,8 +23,10 @@ npx tsx scripts/commander.ts create \
   --api https://YOUR-PREVIEW.vercel.app \
   --code-file /path/on/the/box/afc-codes.json \
   --p1-name Lumi --p2-name GPT-6 \
-  --window 5s
+  --window 5s   --open-seat p2
 ```
+
+`--open-seat p2` (or `p1`, or `both`) marks that fighter as commandable by anyone for that match only, with no join code. Use this when an AI can issue GET requests but cannot POST or keep a secret. The watch HUD shows **OPEN SEAT** on that side. Seats that are not open still require a join code, and codes must never go in a chat or a query string.
 
 This prints the match id and the public **watch** URL. Join codes and the host token are written only to `--code-file` (mode 0600) and are **never printed**. That file is not in the repo. Give each controller only their own code.
 
@@ -43,7 +45,7 @@ STANCE rush|zone|turtle|bait|anti-air
 SPACING 24-400
 AGGRESSION 0-1
 GOFOR none|light|heavy|special|combo
-TAUNT a short callout (max 80 chars)
+TAUNT a short callout (max 80 chars; 60 on the open-seat GET)
 ```
 
 A one-liner also works:
@@ -94,12 +96,21 @@ TAUNT hold the door"
 
 All paths are under the preview origin. CORS is open. Join codes go in the JSON body or an `Authorization: Bearer` header — **never in the query string**.
 
+An AI that can only make GET requests can command an open seat like this (no secrets in the URL):
+
+```
+GET /api/match/MATCH_ID/cmd?fighter=p2&stance=rush&spacing=120&aggression=0.8&goFor=special&taunt=coming%20in
+```
+
+The response is plain text: a one-line `OK seq=…` ack, then the same compact state summary as `GET /api/match/:id/state?format=text`. Taunts are sanitized and capped at 60 characters. Commands are logged and tick-stamped like any other plan.
+
 | Method | Path | Who | What |
 | ------ | ---- | --- | ---- |
 | `POST` | `/api/match` | anyone | Create a match. The **only** response that includes join codes and the host token. |
 | `GET`  | `/api/match` | anyone | Live match list (no secrets). |
 | `GET`  | `/api/match/:id` | anyone | Public metadata. |
-| `POST` | `/api/match/:id/command` | controller | `{ fighter, joinCode, text \| command, issuedAtMs }`. Returns `seq`, `latencyMs`, `appliedTick`. |
+| `POST` | `/api/match/:id/command` | controller | `{ fighter, joinCode, text \| command, issuedAtMs }`. Open seats may omit the code. Returns `seq`, `latencyMs`, `appliedTick`. |
+| `GET`  | `/api/match/:id/cmd` | open seat only | Query `fighter`, `stance`, `spacing`, `aggression`, `goFor`, `taunt`. Submits a plan and returns a plain-text ack plus the compact state summary. Rate-limited to 1/sec per seat. Rejects seats that are not open. Never put a join code in this URL. |
 | `GET`  | `/api/match/:id/state` | anyone | Public state. Pass `Accept: text/plain` or `?format=text` for the LLM summary. |
 | `POST` | `/api/match/:id/state` | host | Publish a state snapshot. |
 | `GET`  | `/api/match/:id/commands?since=N` | host | Pull new commands. |
@@ -114,6 +125,7 @@ Configurable at create time: `off`, `3s`, or `5s`.
 
 - `off` — the fight never pauses. A command applies on the next tick after the host receives it. If an AI is late, the last plan keeps running.
 - `3s` / `5s` — every 3 or 5 seconds of **fight time**, the match **pauses** for 2.5 seconds of wall-clock time, with a visible countdown. Each AI should send a command in that window. If both have submitted, the window closes early. If one does not answer in time, play continues on the last command.
+- `5s-wait` — same 5-second fight-time interval, but the pause **holds until both sides have sent a command**, or 45 seconds pass. Use this when one commander (for example GPT-6 over the relay) needs more time. The window still closes early once both have submitted.
 
 The pause is wall-clock only. It does not change the deterministic tick log, so replays stay identical.
 
@@ -168,7 +180,7 @@ Lumi's fighter uses `src/bots/lumi.ts` and GPT-6's uses `src/bots/gpt6.ts` (Vant
 
 ## Tests
 
-`tests/commander.test.ts` covers command parsing (including noisy LLM replies), window timing, and replay determinism: the same seed and command log always produce the same canonical state, engine playback matches the live run, and a command only affects ticks at or after its timestamp. `tests/commander-http.test.ts` covers join-code auth, the one-time secrets response, and host publish/pull.
+`tests/commander.test.ts` covers command parsing (including noisy LLM replies), window timing, and replay determinism: the same seed and command log always produce the same canonical state, engine playback matches the live run, and a command only affects ticks at or after its timestamp. `tests/commander-http.test.ts` covers join-code auth, the one-time secrets response, host publish/pull, open-seat GET `/cmd`, rate limits, and `?format=text`.
 
 ## Rules
 

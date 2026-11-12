@@ -31,6 +31,7 @@ import type {
   CommandRecord,
   CommanderDirective,
   MatchPublicState,
+  OpenSeat,
   WindowMode,
 } from "./types.ts";
 
@@ -38,6 +39,7 @@ export interface LiveMeta {
   id: string;
   seed: number;
   window: WindowMode;
+  openSeat?: OpenSeat;
   p1: { controller: string; character: string; bot: string };
   p2: { controller: string; character: string; bot: string };
 }
@@ -185,6 +187,7 @@ export async function startHost(
       updatedAtMs: nowMs,
       startedAtMs,
       phaseOverride: win.open ? "window" : undefined,
+      openSeat: claimed.openSeat ?? meta.openSeat ?? "none",
     });
   }
 
@@ -342,7 +345,7 @@ export function startSpectator(
           hooks.onLog?.("Volunteer host claimed. Autopilot is running in this tab.", "host");
           hostHandle = await startHost(
             canvas,
-            { id, seed: v.seed, window: (v.window === "3s" || v.window === "5s" ? v.window : "off"), p1: v.p1, p2: v.p2 },
+            { id, seed: v.seed, window: (v.window === "3s" || v.window === "5s" || v.window === "5s-wait" ? v.window : "off"), openSeat: v.openSeat ?? "none", p1: v.p1, p2: v.p2 },
             v.volunteerToken,
             {
               onPublic: hooks.onPublic,

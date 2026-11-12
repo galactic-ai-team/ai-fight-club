@@ -77,7 +77,8 @@ export function formatStateText(s: MatchPublicState): string {
   const lines = [
     `MATCH ${s.id}  tick=${s.tick}  round=${s.round}  time=${clock}s  phase=${s.phase}  score=${s.p1Wins}-${s.p2Wins}` +
       (s.over ? `  winner=${s.winner ?? "draw"}` : "") +
-      (s.hostPresent ? "  host=yes" : "  host=waiting"),
+      (s.hostPresent ? "  host=yes" : "  host=waiting") +
+      (s.openSeat && s.openSeat !== "none" ? `  openSeat=${s.openSeat}` : ""),
     win,
     fighterLine("P1", s.p1),
     fighterLine("P2", s.p2),
@@ -156,6 +157,7 @@ export function publicFromMatch(
     updatedAtMs: number;
     startedAtMs: number | null;
     phaseOverride?: MatchPublicState["phase"];
+    openSeat?: MatchPublicState["openSeat"];
   },
 ): MatchPublicState {
   const p1 = snapshotFighter(state.p1, {
@@ -195,6 +197,7 @@ export function publicFromMatch(
     hostPresent: extras.hostPresent,
     updatedAtMs: extras.updatedAtMs,
     startedAtMs: extras.startedAtMs,
+    openSeat: extras.openSeat ?? "none",
   };
   pub.summary = formatStateText(pub);
   return pub;

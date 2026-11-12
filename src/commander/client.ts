@@ -1,4 +1,4 @@
-import type { CommandRecord, MatchPublicState, PublicMatchListItem, WindowMode } from "./types.ts";
+import type { CommandRecord, MatchPublicState, OpenSeat, PublicMatchListItem, WindowMode } from "./types.ts";
 
 export function apiBase(): string {
   return "";
@@ -36,6 +36,7 @@ export interface CreatedMatchJson {
   watchPath: string;
   relayPath: string;
   window: WindowMode;
+  openSeat: OpenSeat;
   seed: number;
   expiresAt: string;
   p1: { controller: string; character: string; bot: string };
@@ -57,6 +58,7 @@ export async function getState(id: string): Promise<{
   status: string;
   hostPresent: boolean;
   window: WindowMode;
+  openSeat: OpenSeat;
   seed: number;
   p1: { controller: string; character: string; bot: string };
   p2: { controller: string; character: string; bot: string };
@@ -96,6 +98,7 @@ export async function claimHost(id: string, hostToken: string): Promise<{
   id: string;
   seed: number;
   window: WindowMode;
+  openSeat: OpenSeat;
   p1: { controller: string; character: string; bot: string };
   p2: { controller: string; character: string; bot: string };
 }> {
@@ -111,6 +114,7 @@ export async function volunteerHost(id: string): Promise<{
   id: string;
   seed: number;
   window: string;
+  openSeat: OpenSeat;
   volunteer: boolean;
   volunteerToken: string;
   p1: { controller: string; character: string; bot: string };

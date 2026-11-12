@@ -30,12 +30,13 @@ function clamp(n: number, lo: number, hi: number): number {
 }
 
 /** Strip control chars, collapse whitespace, cap length. No HTML. */
-export function sanitizeTaunt(raw: unknown): string {
+export function sanitizeTaunt(raw: unknown, max = MAX_TAUNT): string {
   if (typeof raw !== "string") return "";
   let s = raw.replace(/[\u0000-\u001f\u007f-\u009f]/g, " ").replace(/\s+/g, " ").trim();
   // Neutralize anything that could render as markup in the overlay.
   s = s.replace(/[<>]/g, "");
-  if (s.length > MAX_TAUNT) s = s.slice(0, MAX_TAUNT).trim();
+  const cap = Number.isFinite(max) && max > 0 ? max : MAX_TAUNT;
+  if (s.length > cap) s = s.slice(0, cap).trim();
   return s;
 }
 

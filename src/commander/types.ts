@@ -6,7 +6,7 @@ export type Stance = (typeof STANCES)[number];
 export const GO_FORS = ["none", "special", "light", "heavy", "combo"] as const;
 export type GoFor = (typeof GO_FORS)[number];
 
-export const WINDOW_MODES = ["off", "3s", "5s"] as const;
+export const WINDOW_MODES = ["off", "3s", "5s", "5s-wait"] as const;
 export type WindowMode = (typeof WINDOW_MODES)[number];
 
 export function isStance(v: unknown): v is Stance {
@@ -21,6 +21,30 @@ export function isWindowMode(v: unknown): v is WindowMode {
   return typeof v === "string" && (WINDOW_MODES as readonly string[]).includes(v);
 }
 
+export const OPEN_SEATS = ["none", "p1", "p2", "both"] as const;
+export type OpenSeat = (typeof OPEN_SEATS)[number];
+
+export function isOpenSeat(v: unknown): v is OpenSeat {
+  return typeof v === "string" && (OPEN_SEATS as readonly string[]).includes(v);
+}
+
+/** Parse create-time --open-seat / form values. Invalid input yields null. */
+export function parseOpenSeat(v: unknown): OpenSeat | null {
+  if (v === undefined || v === null || v === "") return "none";
+  if (typeof v !== "string") return null;
+  const s = v.trim().toLowerCase();
+  if (s === "none" || s === "off" || s === "closed") return "none";
+  if (s === "p1" || s === "1") return "p1";
+  if (s === "p2" || s === "2") return "p2";
+  if (s === "both" || s === "all" || s === "p1,p2" || s === "p1+p2") return "both";
+  return null;
+}
+
+export function seatIsOpen(open: OpenSeat | undefined | null, side: "p1" | "p2"): boolean {
+  const s = open ?? "none";
+  return s === "both" || s === side;
+}
+
 export interface CommanderDirective {
   stance: Stance;
   /** Preferred distance to the opponent, in stage pixels. */
@@ -29,13 +53,15 @@ export interface CommanderDirective {
   aggression: number;
   /** One-shot intent: attempt this, then return to the stance. */
   goFor: GoFor;
-  /** Optional on-screen callout. Sanitized, max 80 chars. */
+  /** Optional on-screen callout. Sanitized, max 80 chars (60 on the open-seat GET). */
   taunt: string;
 }
 
 export const MIN_SPACING = 24;
 export const MAX_SPACING = 400;
 export const MAX_TAUNT = 80;
+/** Open-seat GET /cmd caps taunts tighter than the authenticated POST path. */
+export const OPEN_SEAT_MAX_TAUNT = 60;
 
 export const STANCE_DEFAULTS: Record<Stance, Pick<CommanderDirective, "spacing" | "aggression">> = {
   rush: { spacing: 48, aggression: 0.8 },
@@ -132,6 +158,8 @@ export interface MatchPublicState {
   hostPresent: boolean;
   updatedAtMs: number;
   startedAtMs: number | null;
+  /** Which seats can be commanded with no join code, for this match only. */
+  openSeat?: OpenSeat;
 }
 
 export interface PublicMatchListItem {
@@ -142,6 +170,7 @@ export interface PublicMatchListItem {
   score: string;
   tick: number;
   windowMode: WindowMode;
+  openSeat?: OpenSeat;
   watchPath: string;
   updatedAtMs: number;
 }
@@ -157,6 +186,8 @@ export interface CreateMatchRequest {
   p2Controller?: string;
   /** Seconds until the match (and its join codes) expire. Default 2 hours. */
   ttlSeconds?: number;
+  /** Mark a fighter as commandable by anyone with no code, for this match only. */
+  openSeat?: OpenSeat;
 }
 
 export interface CreateMatchResponse {
@@ -167,6 +198,7 @@ export interface CreateMatchResponse {
   expiresAt: string;
   p1: { controller: string; character: string; bot: string };
   p2: { controller: string; character: string; bot: string };
+  openSeat?: OpenSeat;
   /** Present only on the create response. Never stored in the repo or re-fetched. */
   secrets?: {
     p1Code: string;

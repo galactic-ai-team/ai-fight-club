@@ -1,5 +1,13 @@
 import { publicView, StoreError, type MatchStore } from "./store.ts";
-import { isWindowMode, type CreateMatchRequest, type MatchPublicState } from "./types.ts";
+import { sanitizeTaunt, directiveToCompact } from "./parse.ts";
+import {
+  isWindowMode,
+  parseOpenSeat,
+  seatIsOpen,
+  OPEN_SEAT_MAX_TAUNT,
+  type CreateMatchRequest,
+  type MatchPublicState,
+} from "./types.ts";
 
 type Side = "p1" | "p2";
 
@@ -116,6 +124,9 @@ export async function handleApi(req: ApiRequest, store: MatchStore, nowMs = Date
     if (verb === "command" && req.method === "POST") {
       return await handleCommand(req, store, id, nowMs);
     }
+    if ((verb === "cmd" || verb === "command") && req.method === "GET") {
+      return await handleGetCmd(req, store, id, nowMs);
+    }
     if (verb === "state" && req.method === "GET") {
       return await handleGetState(req, store, id, nowMs);
     }
@@ -162,6 +173,12 @@ async function handleCreate(req: ApiRequest, store: MatchStore, nowMs: number): 
   if (typeof b.p1Controller === "string") input.p1Controller = b.p1Controller;
   if (typeof b.p2Controller === "string") input.p2Controller = b.p2Controller;
   if (b.ttlSeconds !== undefined) input.ttlSeconds = Number(b.ttlSeconds);
+  const openRaw = b.openSeat ?? b.open_seat ?? b["open-seat"];
+  if (openRaw !== undefined && openRaw !== null && openRaw !== "") {
+    const parsed = parseOpenSeat(openRaw);
+    if (!parsed) return json(400, { error: "openSeat must be none, p1, p2, or both" });
+    input.openSeat = parsed;
+  }
   const created = await store.create(input, nowMs);
   const m = created.record;
   return json(201, {
@@ -169,6 +186,7 @@ async function handleCreate(req: ApiRequest, store: MatchStore, nowMs: number): 
     watchPath: `/watch.html?m=${encodeURIComponent(m.id)}`,
     relayPath: `/relay.html?m=${encodeURIComponent(m.id)}`,
     window: m.windowMode,
+    openSeat: m.openSeat ?? "none",
     seed: m.seed,
     expiresAt: new Date(m.expiresAtMs).toISOString(),
     p1: { controller: m.p1Controller, character: m.p1Character, bot: m.p1Bot },
@@ -188,7 +206,6 @@ async function handleCommand(
     (typeof b.joinCode === "string" ? b.joinCode : "") ||
     (typeof b.code === "string" ? b.code : "") ||
     bearer(req);
-  if (!code) return json(401, { error: "join code required" });
   const raw = b.text ?? b.command ?? b;
   const issued = typeof b.issuedAtMs === "number" ? b.issuedAtMs : null;
   const rec = await store.submitCommand(id, side, code, raw, issued, nowMs);
@@ -211,13 +228,19 @@ async function handleGetState(
   if (!m) return json(404, { error: "match not found" });
   if (nowMs > m.expiresAtMs && !m.publicState) return json(410, { error: "match expired" });
   const state = m.publicState;
-  const summary = state?.summary ?? `MATCH ${m.id}  host=${m.hostPresent ? "yes" : "waiting"}  no state yet`;
+  const openSeat = m.openSeat ?? "none";
+  const summary = state?.summary ?? (
+    `MATCH ${m.id}  host=${m.hostPresent ? "yes" : "waiting"}` +
+    (openSeat !== "none" ? `  openSeat=${openSeat}` : "") +
+    "  no state yet"
+  );
   if (wantsText(req)) return text(200, summary);
   return json(200, {
     id: m.id,
     status: publicView(m, nowMs).status,
     hostPresent: m.hostPresent && nowMs - m.hostSeenAtMs <= 15_000,
     window: m.windowMode,
+    openSeat,
     seed: m.seed,
     p1: { controller: m.p1Controller, character: m.p1Character, bot: m.p1Bot },
     p2: { controller: m.p2Controller, character: m.p2Character, bot: m.p2Bot },
@@ -284,6 +307,7 @@ async function handleClaim(
     id: m.id,
     seed: m.seed,
     window: m.windowMode,
+    openSeat: m.openSeat ?? "none",
     p1: { controller: m.p1Controller, character: m.p1Character, bot: m.p1Bot },
     p2: { controller: m.p2Controller, character: m.p2Character, bot: m.p2Bot },
   });
@@ -313,10 +337,61 @@ async function handleVolunteer(
     id: m.id,
     seed: m.seed,
     window: m.windowMode,
+    openSeat: m.openSeat ?? "none",
     volunteer: true,
     // Lease shown once to this caller; it is a short-lived host token, not a join code.
     volunteerToken: result.token,
     p1: { controller: m.p1Controller, character: m.p1Character, bot: m.p1Bot },
     p2: { controller: m.p2Controller, character: m.p2Character, bot: m.p2Bot },
   });
+}
+
+
+function cmdQueryInput(query: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = { ...query };
+  if (out.go && !out.goFor && !out.gofor && !out.go_for) out.goFor = out.go;
+  if (out.taunt !== undefined) out.taunt = sanitizeTaunt(out.taunt, OPEN_SEAT_MAX_TAUNT);
+  return out;
+}
+
+function stateSummary(m: { id: string; hostPresent: boolean; openSeat?: string; publicState: MatchPublicState | null }): string {
+  if (m.publicState?.summary) return m.publicState.summary;
+  const open = m.openSeat && m.openSeat !== "none" ? `  openSeat=${m.openSeat}` : "";
+  return `MATCH ${m.id}  host=${m.hostPresent ? "yes" : "waiting"}${open}  no state yet`;
+}
+
+/**
+ * GET /api/match/:id/cmd?fighter=p2&stance=rush&...
+ * Open seats only. One GET both submits a plan and returns a compact state
+ * summary, so an LLM that can only issue GET requests can command a fighter.
+ * Never accepts a join code in the query string.
+ */
+async function handleGetCmd(
+  req: ApiRequest, store: MatchStore, id: string, nowMs: number,
+): Promise<ApiResponse> {
+  const side = readSide(req.query.fighter ?? req.query.side);
+  if (!side) return text(400, "error: fighter must be p1 or p2");
+  try {
+    const m0 = await store.get(id, nowMs);
+    if (!m0) return text(404, "error: match not found");
+    if (nowMs > m0.expiresAtMs) return text(410, "error: match expired");
+    if (!seatIsOpen(m0.openSeat, side)) {
+      return text(403, `error: ${side} is not an open seat`);
+    }
+    const input = cmdQueryInput(req.query);
+    const rec = await store.submitCommand(id, side, "", input, null, nowMs);
+    const fresh = await store.get(id, nowMs);
+    const summary = fresh ? stateSummary(fresh) : `MATCH ${id}  no state yet`;
+    const ack =
+      `OK seq=${rec.seq} fighter=${rec.side} appliedTick=${rec.appliedTick} ` +
+      `receivedAtMs=${rec.receivedAtMs} ${directiveToCompact(rec.directive)}`;
+    return text(200, `${ack}\n${summary}`);
+  } catch (err) {
+    if (err instanceof StoreError) {
+      const fresh = await store.get(id, nowMs);
+      const summary = fresh ? stateSummary(fresh) : "";
+      return text(err.status, `error: ${err.message}` + (summary ? `\n${summary}` : ""));
+    }
+    throw err;
+  }
 }

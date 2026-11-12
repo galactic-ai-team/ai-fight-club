@@ -270,3 +270,145 @@ describe("commander HTTP API", () => {
     }), later + 10);
     expect(volAfter.status).toBe(401);
   });
+
+
+describe("open-seat GET /cmd", () => {
+  it("creates with openSeat p2, accepts GET /cmd on p2, and rejects p1 without a code", async () => {
+    const store = new MemoryStore();
+    const created = await call(store, req({
+      method: "POST",
+      path: "/api/match",
+      body: {
+        seed: 42,
+        window: "5s",
+        p1Controller: "Lumi",
+        p2Controller: "Nova",
+        p1Bot: "lumi",
+        p2Bot: "rusher",
+        openSeat: "p2",
+      },
+    }));
+    expect(created.status).toBe(201);
+    const body = created.body as {
+      id: string;
+      openSeat: string;
+      secrets: { p1Code: string; p2Code: string; hostToken: string };
+    };
+    expect(body.openSeat).toBe("p2");
+    const { id, secrets } = body;
+    expect(JSON.stringify(await call(store, req({ method: "GET", path: `/api/match/${id}` })))).not.toContain(secrets.p1Code);
+
+    const p2 = await call(store, req({
+      method: "GET",
+      path: `/api/match/${id}/cmd`,
+      query: {
+        fighter: "p2",
+        stance: "rush",
+        spacing: "120",
+        aggression: "0.8",
+        goFor: "special",
+        taunt: "coming in",
+      },
+    }));
+    expect(p2.status).toBe(200);
+    expect(p2.headers["Content-Type"]).toMatch(/text\/plain/);
+    const p2text = String(p2.body);
+    expect(p2text).toMatch(/^OK seq=1 fighter=p2 /);
+    expect(p2text).toContain("rush");
+    expect(p2text).toContain("coming in");
+    expect(p2text).toContain(`MATCH ${id}`);
+    expect(p2text).toContain("openSeat=p2");
+    expect(p2text).not.toContain(secrets.p1Code);
+    expect(p2text).not.toContain(secrets.p2Code);
+    expect(p2text).not.toContain(secrets.hostToken);
+
+    const st = await call(store, req({ method: "GET", path: `/api/match/${id}/state` }));
+    expect(st.status).toBe(200);
+    const sj = st.body as {
+      openSeat: string;
+      commandCount: number;
+      latest: { p2: { seq: number; raw: string; appliedTick: number; receivedAtMs: number } | null; p1: unknown };
+    };
+    expect(sj.openSeat).toBe("p2");
+    expect(sj.commandCount).toBe(1);
+    expect(sj.latest.p2?.seq).toBe(1);
+    expect(sj.latest.p2?.appliedTick).toBe(-1);
+    expect(sj.latest.p2?.receivedAtMs).toBe(1_000_000);
+    expect(sj.latest.p2?.raw).toContain("rush");
+    expect(sj.latest.p1).toBeNull();
+
+    const p1 = await call(store, req({
+      method: "GET",
+      path: `/api/match/${id}/cmd`,
+      query: { fighter: "p1", stance: "turtle" },
+    }));
+    expect(p1.status).toBe(403);
+    expect(String(p1.body)).toMatch(/not an open seat/i);
+    expect(String(p1.body)).not.toContain(secrets.p1Code);
+
+    const rec = store.matches.get(id)!;
+    expect(rec.log).toHaveLength(1);
+    expect(rec.log[0]!.side).toBe("p2");
+    expect(rec.pending).toHaveLength(1);
+  });
+
+  it("rate-limits open-seat GET /cmd to 1 per second per fighter and caps sanitized taunts at 60 chars", async () => {
+    const store = new MemoryStore();
+    const created = await call(store, req({
+      method: "POST", path: "/api/match", body: { seed: 7, openSeat: "p2" },
+    }), 1_000_000);
+    const { id } = created.body as { id: string };
+
+    const first = await call(store, req({
+      method: "GET", path: `/api/match/${id}/cmd`,
+      query: { fighter: "p2", stance: "zone", taunt: "x".repeat(80) + " <script>" },
+    }), 1_000_000);
+    expect(first.status).toBe(200);
+    const ack = String(first.body);
+    expect(ack).toContain("taunt=" + "x".repeat(60));
+    expect(ack).not.toContain("x".repeat(61));
+    expect(ack).not.toContain("<");
+    expect(ack).not.toContain("script");
+
+    const tooSoon = await call(store, req({
+      method: "GET", path: `/api/match/${id}/cmd`,
+      query: { fighter: "p2", stance: "rush" },
+    }), 1_000_500);
+    expect(tooSoon.status).toBe(429);
+    expect(String(tooSoon.body)).toMatch(/too many commands/i);
+
+    const later = await call(store, req({
+      method: "GET", path: `/api/match/${id}/cmd`,
+      query: { fighter: "p2", stance: "rush" },
+    }), 1_001_000);
+    expect(later.status).toBe(200);
+    expect(String(later.body)).toMatch(/^OK seq=2 /);
+  });
+
+  it("rejects GET /cmd on a match with no open seat, and returns LLM text from ?format=text", async () => {
+    const store = new MemoryStore();
+    const created = await call(store, req({
+      method: "POST", path: "/api/match", body: { seed: 3, window: "5s" },
+    }));
+    const { id } = created.body as { id: string };
+    const closed = await call(store, req({
+      method: "GET", path: `/api/match/${id}/cmd`, query: { fighter: "p2", stance: "rush" },
+    }));
+    expect(closed.status).toBe(403);
+
+    const txt = await call(store, req({
+      method: "GET",
+      path: `/api/match/${id}/state`,
+      query: { format: "text" },
+    }));
+    expect(txt.status).toBe(200);
+    expect(txt.headers["Content-Type"]).toMatch(/text\/plain/);
+    expect(String(txt.body)).toContain(`MATCH ${id}`);
+    expect(String(txt.body)).toContain("no state yet");
+
+    const bad = await call(store, req({
+      method: "POST", path: "/api/match", body: { seed: 4, openSeat: "p3" },
+    }));
+    expect(bad.status).toBe(400);
+  });
+});

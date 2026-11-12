@@ -173,6 +173,7 @@ class SupabaseRestStore implements MatchStore {
         score: r.score ?? "0-0",
         tick: r.tick ?? 0,
         windowMode: (r.window_mode as PublicMatchListItem["windowMode"]) ?? "off",
+        openSeat: r.state?.openSeat ?? "none",
         watchPath: r.watch_path || `/watch.html?m=${encodeURIComponent(r.id)}`,
         updatedAtMs: Date.parse(r.updated_at) || nowMs,
       };

@@ -9,7 +9,7 @@ import {
 } from "./client.ts";
 import { directiveToCompact } from "./parse.ts";
 import { startHost, startSpectator } from "./live.ts";
-import type { FighterSnapshot, MatchPublicState, PublicMatchListItem } from "./types.ts";
+import type { FighterSnapshot, MatchPublicState, OpenSeat, PublicMatchListItem } from "./types.ts";
 
 const lobby = document.querySelector<HTMLElement>("#lobby")!;
 const arena = document.querySelector<HTMLElement>("#arena")!;
@@ -24,6 +24,16 @@ const overlayCount = document.querySelector<HTMLDivElement>("#window-count")!;
 const overlaySubs = document.querySelector<HTMLDivElement>("#window-subs")!;
 const watchUrlInput = document.querySelector<HTMLInputElement>("#watch-url")!;
 const copyBtn = document.querySelector<HTMLButtonElement>("#copy-watch")!;
+
+let currentOpenSeat: OpenSeat = "none";
+
+function seatOpen(side: "p1" | "p2"): boolean {
+  return currentOpenSeat === "both" || currentOpenSeat === side;
+}
+
+function setOpenSeatBadge(side: "p1" | "p2", on: boolean): void {
+  document.getElementById(`${side}-open`)?.classList.toggle("hidden", !on);
+}
 
 function fillBar(el: HTMLSpanElement | null, value: number, max: number): void {
   if (!el) return;
@@ -60,7 +70,8 @@ function setText(id: string, text: string): void {
 }
 
 function renderCard(side: "p1" | "p2", f: FighterSnapshot): void {
-  setText(`card-${side}-who`, `${side.toUpperCase()} · ${f.controller} in control`);
+  const open = seatOpen(side) ? " · OPEN SEAT" : "";
+  setText(`card-${side}-who`, `${side.toUpperCase()} · ${f.controller} in control${open}`);
   const plan = f.command ? directiveToCompact(f.command) : "default autopilot";
   setText(`card-${side}-plan`, plan);
   const meta = document.getElementById(`card-${side}-meta`);
@@ -70,8 +81,11 @@ function renderCard(side: "p1" | "p2", f: FighterSnapshot): void {
 }
 
 function renderPublic(s: MatchPublicState): void {
+  if (s.openSeat) currentOpenSeat = s.openSeat;
   setText("p1-name", s.p1.character);
   setText("p2-name", s.p2.character);
+  setOpenSeatBadge("p1", seatOpen("p1"));
+  setOpenSeatBadge("p2", seatOpen("p2"));
   setText("p1-ctrl", `${s.p1.controller} in control`);
   setText("p2-ctrl", `${s.p2.controller} in control`);
   const seconds = Math.ceil(s.timeLeftTicks / 60);
@@ -131,7 +145,7 @@ function renderList(items: PublicMatchListItem[]): void {
       return `<li>
         <div>
           <div class="vs">${m.p1.character} (${m.p1.controller}) vs ${m.p2.character} (${m.p2.controller})</div>
-          <div class="sub">${st} · ${m.score} · window ${m.windowMode} · tick ${m.tick}</div>
+          <div class="sub">${st} · ${m.score} · window ${m.windowMode}${m.openSeat && m.openSeat !== "none" ? ` · OPEN SEAT ${m.openSeat.toUpperCase()}` : ""} · tick ${m.tick}</div>
         </div>
         <a class="watch" href="${m.watchPath}">Watch</a>
       </li>`;
@@ -158,18 +172,29 @@ createForm.addEventListener("submit", (e) => {
       p1Bot: (document.getElementById("c-p1-bot") as HTMLSelectElement).value,
       p2Bot: (document.getElementById("c-p2-bot") as HTMLSelectElement).value,
       window: (document.getElementById("c-window") as HTMLSelectElement).value,
+      openSeat: (document.getElementById("c-open-seat") as HTMLSelectElement).value,
       seed: Number((document.getElementById("c-seed") as HTMLInputElement).value) || 1,
     };
     const created = await createMatch(body);
     saveHostToken(created.id, created.secrets.hostToken);
-    // Show join codes once. They are not written to the URL or the watch view.
+    const open = created.openSeat ?? "none";
+    const p1Open = open === "p1" || open === "both";
+    const p2Open = open === "p2" || open === "both";
+    const origin = location.origin;
+    const p1Row = p1Open
+      ? `<div class="secret-row">P1 (${created.p1.controller}): <strong>OPEN SEAT</strong> — no code. GET ${origin}/api/match/${created.id}/cmd?fighter=p1&amp;stance=rush</div>`
+      : `<div class="secret-row">P1 (${created.p1.controller}) code: <code>${created.secrets.p1Code}</code></div>`;
+    const p2Row = p2Open
+      ? `<div class="secret-row">P2 (${created.p2.controller}): <strong>OPEN SEAT</strong> — no code. GET ${origin}/api/match/${created.id}/cmd?fighter=p2&amp;stance=rush</div>`
+      : `<div class="secret-row">P2 (${created.p2.controller}) code: <code>${created.secrets.p2Code}</code></div>`;
+    // Show join codes once, and only for seats that are not open. Never put codes in the URL.
     secretsEl.classList.remove("hidden");
     secretsEl.innerHTML = `
       <h3>Join codes — copy now, they will not be shown again</h3>
-      <p>Give each controller only their own code. Do not put these in the repo, a PR, or a group chat.</p>
+      <p>Give each controller only their own code. Do not put these in the repo, a PR, or a group chat. Open seats need no code.</p>
       <div class="secret-row">Watch: <a href="${watchUrlFor(created.id)}">${watchUrlFor(created.id)}</a></div>
-      <div class="secret-row">P1 (${created.p1.controller}) code: <code>${created.secrets.p1Code}</code></div>
-      <div class="secret-row">P2 (${created.p2.controller}) code: <code>${created.secrets.p2Code}</code></div>
+      ${p1Row}
+      ${p2Row}
       <div class="secret-row">Host token (this browser): saved in session storage (${hostTokenKey(created.id)}).</div>
       <button type="button" id="go-host">Open as host</button>
       <button type="button" class="secondary" id="dismiss-secrets">I've saved these</button>
@@ -211,6 +236,9 @@ function openArena(id: string): void {
       // Need meta: claim inside startHost, but startHost wants LiveMeta first.
       const { getState } = await import("./client.ts");
       const info = await getState(id);
+      currentOpenSeat = info.openSeat ?? "none";
+      setOpenSeatBadge("p1", seatOpen("p1"));
+      setOpenSeatBadge("p2", seatOpen("p2"));
       paintPortraits(info.p1.character, info.p2.character);
       await startHost(
         canvas,
@@ -218,6 +246,7 @@ function openArena(id: string): void {
           id,
           seed: info.seed,
           window: info.window,
+          openSeat: info.openSeat ?? "none",
           p1: info.p1,
           p2: info.p2,
         },
