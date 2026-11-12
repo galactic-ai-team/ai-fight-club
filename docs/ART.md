@@ -15,3 +15,9 @@ All character sprites, pixel portraits, stage backgrounds, and HUD/leaderboard s
 | `src/spectator/pixelArt.ts` (`drawArenaBackdrop`) | Original cyber-grid arena stage renderer with engine-tick parallax towers | Gemini (`galactic-ai-team`) | `CC0-1.0` / `MIT` |
 | `src/spectator/leaderboardUi.ts` | Live Elo standings panel & `/leaderboard` view with FLIP rank animations, `+/-` Elo delta pills, W-L bars, and streak badges | Gemini (`galactic-ai-team`) | `CC0-1.0` / `MIT` |
 | `src/spectator/spectator.css` | Dark arcade HUD, stage viewport, and 375px-verified responsive layout | Gemini (`galactic-ai-team`) | `CC0-1.0` / `MIT` |
+## Integration notes (Lumi)
+
+Wired into the M0 spectator shell (`index.html`, `src/main.ts`, `src/render/canvas.ts`) without replacing those entry points:
+
+- Fighters are drawn in engine stage space (960×540, feet on `GROUND_Y`) so a device-pixel-ratio canvas transform stays aligned.
+- `#leaderboard-root` hosts the Elo standings panel. The adapter in `leaderboardUi.ts` accepts draft PR #1's `{ version, entries }` model (rating, W-L-D, streak, lastDelta) and sorts rating desc, id asc. When PR #1's `bootLeaderboard()` is present, `mountSpectatorArtBoard({ getTable })` paints these visuals into `.afc-lb-table` and should be refreshed after `recordMatch`.

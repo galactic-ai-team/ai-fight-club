@@ -555,3 +555,9 @@
     font-size: 0.6rem;
   }
 }
+
+/* Host hook for the standings panel on the M0 page */
+#leaderboard-root {
+  margin-top: 12px;
+  width: 100%;
+}

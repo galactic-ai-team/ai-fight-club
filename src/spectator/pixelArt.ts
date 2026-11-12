@@ -469,7 +469,7 @@ const PORTRAIT_GRIDS: Record<CanonicalFighterId, string[]> = {
     '..OOPGGPOO..',
     '.OO.OOOO.OO.',
     'OSSOOPPPPOAA',
-    'OAAOPGGGPOSSO',
+    'OAAOPGGGPOSS',
     '.OO.OPPPO.OO',
     '....OOOO....',
   ],
@@ -501,7 +501,7 @@ export function resolveCanonicalFighterId(raw?: string): CanonicalFighterId {
   for (let i = 0; i < s.length; i++) {
     hash = (hash * 31 + s.charCodeAt(i)) >>> 0;
   }
-  return order[hash % order.length];
+  return order[hash % order.length] ?? 'ion';
 }
 
 export function getFighterColorChip(rawIdOrName?: string, explicitColor?: string): string {
@@ -536,6 +536,26 @@ export function resolveFighterPose(f: EngineFighterInput): FighterPose {
     return 'walk';
   }
   return 'idle';
+}
+
+/**
+ * Pure sprite-frame lookup used by the renderer and tests.
+ * Walk/jump alternate walk vs idle every 6 ticks; attack uses the attack
+ * matrix; hit and ko use the hit matrix; other poses use idle.
+ */
+export function lookupSpriteFrame(
+  idOrName: string,
+  pose: FighterPose,
+  tick = 0,
+): string[] {
+  const id = resolveCanonicalFighterId(idOrName);
+  const matrices = SPRITE_MATRICES[id];
+  if (pose === 'walk' || pose === 'jump') {
+    return Math.floor(tick / 6) % 2 === 0 ? matrices.walk : matrices.idle;
+  }
+  if (pose === 'attack') return matrices.attack;
+  if (pose === 'hit' || pose === 'ko') return matrices.hit;
+  return matrices.idle;
 }
 
 /**
@@ -636,7 +656,8 @@ export function drawFighterSprite(
 
   // Scale pixel size proportionally to canvas dimensions
   const pixelScale = Math.max(2, Math.round(canvasHeight / 90));
-  const cols = grid[0].length;
+  const firstRow = grid[0] ?? '';
+  const cols = firstRow.length;
   const rows = grid.length;
   const spriteW = cols * pixelScale;
   const spriteH = rows * pixelScale;
@@ -696,9 +717,10 @@ export function drawFighterSprite(
 
   for (let r = 0; r < rows; r++) {
     const rowStr = grid[r];
+    if (!rowStr) continue;
     for (let c = 0; c < cols; c++) {
       const ch = rowStr[c];
-      if (ch === '.') continue;
+      if (!ch || ch === '.') continue;
 
       if (hitFlash) {
         ctx.fillStyle = '#FFFFFF';
@@ -803,9 +825,10 @@ export function drawPortraitToCanvas(
 
   for (let r = 0; r < grid.length; r++) {
     const row = grid[r];
+    if (!row) continue;
     for (let c = 0; c < row.length; c++) {
       const ch = row[c];
-      if (ch === '.') continue;
+      if (!ch || ch === '.') continue;
       switch (ch) {
         case 'O':
           ctx.fillStyle = palette.outline;

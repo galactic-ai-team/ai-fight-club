@@ -1,5 +1,8 @@
 import { createBot, type Bot } from "./bots/index.ts";
 import { commentOn } from "./commentary/index.ts";
+import "./spectator/spectator.css";
+import { drawPortraitToCanvas } from "./spectator/pixelArt.ts";
+import { mountSpectatorArtBoard } from "./spectator/mountBoard.ts";
 import {
   TICK_MS,
   appendInput,
@@ -55,6 +58,13 @@ function logLine(text: string, kind: string): void {
   logEl.prepend(line);
 }
 
+function paintPortraits(p1Character: string, p2Character: string): void {
+  const p1 = document.querySelector<HTMLCanvasElement>("#p1-portrait");
+  const p2 = document.querySelector<HTMLCanvasElement>("#p2-portrait");
+  if (p1) drawPortraitToCanvas(p1, p1Character, 3);
+  if (p2) drawPortraitToCanvas(p2, p2Character, 3);
+}
+
 function fillBar(el: HTMLSpanElement, value: number, max: number, flip = false): void {
   const pct = max <= 0 ? 0 : Math.max(0, Math.min(100, (value / max) * 100));
   el.style.width = `${pct}%`;
@@ -94,6 +104,7 @@ function startMatch(): void {
   p2.start?.({ side: "p2", seed, opponentId: p1.id });
   p1Name.textContent = `${match.p1.character} · ${p1.name}`;
   p2Name.textContent = `${match.p2.character} · ${p2.name}`;
+  paintPortraits(match.p1.character, match.p2.character);
   resetLog();
   logLine(`Match start. Seed ${seed}. ${p1.name} vs ${p2.name}.`, "start");
   playing = true;
@@ -172,6 +183,8 @@ downloadBtn.addEventListener("click", () => {
 
 // Show a still of the opening positions before the first fight.
 match = createMatch({ seed: Number(seedInput.value) || 1 });
+paintPortraits(match.p1.character, match.p2.character);
 renderHud(match);
 renderMatch(ctx, match);
+mountSpectatorArtBoard();
 requestAnimationFrame(frame);

@@ -21,6 +21,7 @@ export interface NormalizedLeaderboardRow {
   lastDelta: number;
   wins: number;
   losses: number;
+  draws: number;
   streak: number; // +N for win streak (WN), -N for loss streak (LN)
 }
 
@@ -48,6 +49,7 @@ export const DEFAULT_LEADERBOARD_FIXTURE: NormalizedLeaderboardState = {
       lastDelta: +16,
       wins: 7,
       losses: 3,
+      draws: 0,
       streak: 3,
     },
     {
@@ -62,6 +64,7 @@ export const DEFAULT_LEADERBOARD_FIXTURE: NormalizedLeaderboardState = {
       lastDelta: -16,
       wins: 6,
       losses: 4,
+      draws: 0,
       streak: -1,
     },
     {
@@ -76,6 +79,7 @@ export const DEFAULT_LEADERBOARD_FIXTURE: NormalizedLeaderboardState = {
       lastDelta: +14,
       wins: 5,
       losses: 5,
+      draws: 0,
       streak: 1,
     },
     {
@@ -90,6 +94,7 @@ export const DEFAULT_LEADERBOARD_FIXTURE: NormalizedLeaderboardState = {
       lastDelta: -14,
       wins: 3,
       losses: 9,
+      draws: 0,
       streak: -2,
     },
   ],
@@ -144,7 +149,7 @@ export function adaptPr1Leaderboard(
     } else {
       // Plain record keyed by fighter id
       const vals = Object.entries(obj).filter(
-        ([k, v]) => v && typeof v === 'object' && ('elo' in v || 'rating' in v || 'wins' in v)
+        ([, v]) => v && typeof v === 'object' && ('elo' in v || 'rating' in v || 'wins' in v)
       );
       if (vals.length > 0) {
         rawList = vals.map(([k, v]) => ({ id: k, ...(v as object) }));
@@ -166,7 +171,7 @@ export function adaptPr1Leaderboard(
     const prev = prevById.get(key);
     const fighterId = resolveCanonicalFighterId(rawId);
 
-    const elo = Math.round(Number(item.elo ?? item.rating ?? item.score ?? prev?.elo ?? 1200));
+    const elo = Math.round(Number(item.elo ?? item.rating ?? item.score ?? prev?.elo ?? 1500));
 
     // Use explicit delta from PR #1 if present; otherwise diff against previous Elo
     const explicitDelta =
@@ -180,6 +185,7 @@ export function adaptPr1Leaderboard(
 
     const wins = Number(item.wins ?? item.w ?? prev?.wins ?? 0);
     const losses = Number(item.losses ?? item.l ?? prev?.losses ?? 0);
+    const draws = Number(item.draws ?? item.d ?? item.ties ?? prev?.draws ?? 0);
 
     // Parse streak from signed integer, string ("W3" / "L2"), or { type, count }
     let streak = 0;
@@ -215,22 +221,72 @@ export function adaptPr1Leaderboard(
       lastDelta,
       wins,
       losses,
+      draws,
       streak,
     };
   });
 
-  // Sort by Elo descending (tie-break by wins)
-  rows.sort((a, b) => b.elo - a.elo || b.wins - a.wins);
+  // Sort like PR #1: rating/Elo descending, then id ascending.
+  rows.sort((a, b) => b.elo - a.elo || a.id.localeCompare(b.id));
   rows.forEach((r, idx) => {
     r.rank = idx + 1;
   });
 
   if (totalMatches === 0) {
-    const sumWins = rows.reduce((acc, r) => acc + r.wins, 0);
-    totalMatches = sumWins;
+    const sumGames = rows.reduce((acc, r) => acc + r.wins + r.losses + r.draws, 0);
+    totalMatches = Math.floor(sumGames / 2);
   }
 
   return { totalMatches, rows };
+}
+
+
+export interface LeaderboardRowView {
+  id: string;
+  name: string;
+  rank: number;
+  elo: number;
+  lastDelta: number;
+  deltaText: string;
+  record: string;
+  streakText: string;
+  shift: number;
+}
+
+export function formatLeaderboardRows(state: NormalizedLeaderboardState): LeaderboardRowView[] {
+  return state.rows.map((row) => {
+    const shift = row.previousRank - row.rank;
+    const absStreak = Math.abs(row.streak);
+    const streakText =
+      row.streak === 0 ? "—" : row.streak > 0 ? `W${absStreak}` : `L${absStreak}`;
+    const deltaText = row.lastDelta > 0 ? `+${row.lastDelta}` : `${row.lastDelta}`;
+    const draws = row.draws ?? 0;
+    return {
+      id: row.id,
+      name: row.name,
+      rank: row.rank,
+      elo: row.elo,
+      lastDelta: row.lastDelta,
+      deltaText,
+      record: `${row.wins}-${row.losses}-${draws}`,
+      streakText,
+      shift,
+    };
+  });
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (c) =>
+    c === "&"
+      ? "&amp;"
+      : c === "<"
+        ? "&lt;"
+        : c === ">"
+          ? "&gt;"
+          : c === '"'
+            ? "&quot;"
+            : "&#39;",
+  );
 }
 
 export class LeaderboardPanel {
@@ -301,7 +357,7 @@ export class LeaderboardPanel {
     loser.losses += 1;
     loser.streak = loser.streak < 0 ? loser.streak - 1 : -1;
 
-    next.rows.sort((a, b) => b.elo - a.elo || b.wins - a.wins);
+    next.rows.sort((a, b) => b.elo - a.elo || a.id.localeCompare(b.id));
     next.rows.forEach((r, i) => {
       r.rank = i + 1;
     });
@@ -437,7 +493,7 @@ export class LeaderboardPanel {
         ? 'afc-streak-win'
         : 'afc-streak-loss';
 
-    const total = row.wins + row.losses;
+    const total = row.wins + row.losses + (row.draws ?? 0);
     const winPct = total > 0 ? Math.round((row.wins / total) * 100) : 0;
 
     el.innerHTML = `
@@ -452,8 +508,8 @@ export class LeaderboardPanel {
           <canvas class="afc-lb-portrait" width="36" height="36" aria-hidden="true"></canvas>
         </div>
         <div class="afc-lb-ident">
-          <span class="afc-lb-name">${row.name}</span>
-          <span class="afc-lb-model">${row.model}</span>
+          <span class="afc-lb-name">${escapeHtml(row.name)}</span>
+          <span class="afc-lb-model">${escapeHtml(row.model)}</span>
         </div>
       </div>
 
@@ -463,7 +519,7 @@ export class LeaderboardPanel {
       </div>
 
       <div class="afc-lb-cell-wl">
-        <span class="afc-lb-wl">${row.wins}-${row.losses}</span>
+        <span class="afc-lb-wl">${row.wins}-${row.losses}-${row.draws ?? 0}</span>
         <div class="afc-lb-winbar" title="${winPct}% Win Rate">
           <div class="afc-lb-winbar-fill" style="width: ${winPct}%; background: ${row.color}"></div>
         </div>
