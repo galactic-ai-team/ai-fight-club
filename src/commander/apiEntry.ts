@@ -1,5 +1,5 @@
-import { handleApi, type ApiRequest } from "../src/commander/http.ts";
-import { getServerStore } from "../src/commander/serverStore.ts";
+import { handleApi, type ApiRequest } from "./http.ts";
+import { getServerStore } from "./serverStore.ts";
 
 type VercelReq = {
   method?: string;

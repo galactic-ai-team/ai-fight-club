@@ -1,4 +1,6 @@
 import { getSharedMemoryStore, type MatchStore } from "./store.ts";
+import { createSupabaseStore } from "./supabaseStore.ts";
+import { createBlobStore } from "./blobStore.ts";
 
 function env(name: string): string {
   const g = globalThis as { process?: { env?: Record<string, string | undefined> } };
@@ -17,23 +19,12 @@ export async function getServerStore(): Promise<MatchStore> {
   const kind = env("AFC_STORE") || detectKind();
   if (g.__afcStore && g.__afcStoreKind === kind) return g.__afcStore;
 
-  if (kind === "supabase") {
-    const { createSupabaseStore } = await import("./supabaseStore.ts");
-    const store = createSupabaseStore();
-    g.__afcStore = store;
-    g.__afcStoreKind = kind;
-    return store;
-  }
-  if (kind === "blob") {
-    const { createBlobStore } = await import("./blobStore.ts");
-    const store = createBlobStore();
-    g.__afcStore = store;
-    g.__afcStoreKind = kind;
-    return store;
-  }
-  const store = getSharedMemoryStore();
+  let store: MatchStore;
+  if (kind === "supabase") store = createSupabaseStore();
+  else if (kind === "blob") store = createBlobStore();
+  else store = getSharedMemoryStore();
   g.__afcStore = store;
-  g.__afcStoreKind = "memory";
+  g.__afcStoreKind = kind;
   return store;
 }
 
