@@ -1,6 +1,14 @@
-/** Minimal RGBA PNG encoder. Uses Node's zlib only — no native canvas dependency. */
-
-import { deflateSync } from "node:zlib";
+/**
+ * Minimal RGBA PNG encoder — pure JavaScript, no Node APIs, no native
+ * canvas dependency, so the same code runs in Node tests, CI, and the
+ * browser bundle (the spectator PiP imports the POV renderer, which
+ * imports this file).
+ *
+ * DEFLATE uses stored (uncompressed) blocks: a 160x120 POV frame is
+ * ~77 KB of raw pixels either way, and stored blocks keep the encoder
+ * small, deterministic, and identical on every platform. Any PNG
+ * decoder accepts them.
+ */
 
 const CRC_TABLE = new Uint32Array(256);
 for (let n = 0; n < 256; n++) {
@@ -17,17 +25,55 @@ function crc32(bytes: Uint8Array): number {
   return (c ^ 0xffffffff) >>> 0;
 }
 
-function u32(n: number): Uint8Array {
+function adler32(bytes: Uint8Array): number {
+  let a = 1;
+  let b = 0;
+  for (let i = 0; i < bytes.length; i++) {
+    a = (a + bytes[i]!) % 65521;
+    b = (b + a) % 65521;
+  }
+  return ((b << 16) | a) >>> 0;
+}
+
+function u32be(n: number): Uint8Array {
   return Uint8Array.of((n >>> 24) & 0xff, (n >>> 16) & 0xff, (n >>> 8) & 0xff, n & 0xff);
+}
+
+function u16le(n: number): Uint8Array {
+  return Uint8Array.of(n & 0xff, (n >>> 8) & 0xff);
+}
+
+/** Wrap raw bytes in a zlib stream using stored DEFLATE blocks. */
+function zlibStore(raw: Uint8Array): Uint8Array {
+  const MAX_BLOCK = 65535;
+  const blocks = Math.max(1, Math.ceil(raw.length / MAX_BLOCK));
+  const out = new Uint8Array(2 + blocks * 5 + raw.length + 4);
+  let o = 0;
+  out[o++] = 0x78; // CMF: deflate, 32K window
+  out[o++] = 0x01; // FLG: no preset dict, FCHECK valid
+  for (let b = 0; b < blocks; b++) {
+    const start = b * MAX_BLOCK;
+    const len = Math.min(MAX_BLOCK, raw.length - start);
+    const final = b === blocks - 1 ? 1 : 0;
+    out[o++] = final; // BFINAL + BTYPE 00 (stored), byte-aligned
+    out.set(u16le(len), o);
+    o += 2;
+    out.set(u16le(~len & 0xffff), o);
+    o += 2;
+    out.set(raw.subarray(start, start + len), o);
+    o += len;
+  }
+  out.set(u32be(adler32(raw)), o);
+  return out;
 }
 
 function chunk(type: string, data: Uint8Array): Uint8Array {
   const typeBytes = new TextEncoder().encode(type);
-  const len = u32(data.length);
+  const len = u32be(data.length);
   const body = new Uint8Array(typeBytes.length + data.length);
   body.set(typeBytes, 0);
   body.set(data, typeBytes.length);
-  const crc = u32(crc32(body));
+  const crc = u32be(crc32(body));
   const out = new Uint8Array(4 + body.length + 4);
   out.set(len, 0);
   out.set(body, 4);
@@ -57,11 +103,11 @@ export function encodePng(width: number, height: number, pixels: Uint8Array): Ui
   }
 
   const ihdr = new Uint8Array(13);
-  ihdr.set(u32(width), 0);
-  ihdr.set(u32(height), 4);
+  ihdr.set(u32be(width), 0);
+  ihdr.set(u32be(height), 4);
   ihdr[8] = 8; // bit depth
   ihdr[9] = 6; // RGBA
-  const idat = deflateSync(raw, { level: 9 });
+  const idat = zlibStore(raw);
 
   const parts = [SIGNATURE, chunk("IHDR", ihdr), chunk("IDAT", idat), chunk("IEND", new Uint8Array(0))];
   let total = 0;

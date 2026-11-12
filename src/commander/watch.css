@@ -310,6 +310,46 @@ footer a { color: var(--p1); }
 .fighter-hud.p2 .hud-fighter-header { justify-content: flex-end; }
 .hud-portrait { width: 28px; height: 28px; image-rendering: pixelated; border-radius: 4px; }
 
+/* AI Eyes picture-in-picture: what each fighter sees (first-person POV). */
+#eyes-pip {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-top: 8px;
+}
+.eyes-pip-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.eyes-pip-head h2 { margin: 0; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.eyes-pip-toggle { display: flex; gap: 4px; }
+.eyes-pip-toggle button { background: #2a3354; color: var(--ink); padding: 4px 10px; font-size: 11px; }
+.eyes-pip-toggle button[aria-pressed="true"] { background: var(--accent); color: #14081f; }
+.eyes-pip-note { margin: 6px 0 8px; font-size: 11px; color: var(--muted); }
+.eyes-pip-frames { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.eyes-pip-frame { margin: 0; min-width: 0; }
+.eyes-pip-frame canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #000;
+}
+.eyes-pip-frame figcaption {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.eyes-pip-frame[data-pip-side="p1"] figcaption { color: var(--p1); }
+.eyes-pip-frame[data-pip-side="p2"] figcaption { color: var(--p2); }
+#eyes-pip.eyes-pip-off .eyes-pip-frames { display: none; }
+@media (max-width: 560px) {
+  .eyes-pip-frames { grid-template-columns: 1fr; }
+}
+
 .hidden { display: none !important; }
 
 @media (max-width: 700px) {

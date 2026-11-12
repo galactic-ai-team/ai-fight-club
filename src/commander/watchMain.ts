@@ -1,5 +1,7 @@
 import { drawPortraitToCanvas } from "../spectator/pixelArt.ts";
 import { resizeCanvas } from "../render/canvas.ts";
+import { parsePipMode, pipLabel, renderPipFramesFromPublic, type PipMode } from "../eyes/pip.ts";
+import { applyPipMode, paintPovFrame, setPipLabel } from "../eyes/pipDom.ts";
 import {
   createMatch,
   hostTokenKey,
@@ -24,6 +26,42 @@ const overlayCount = document.querySelector<HTMLDivElement>("#window-count")!;
 const overlaySubs = document.querySelector<HTMLDivElement>("#window-subs")!;
 const watchUrlInput = document.querySelector<HTMLInputElement>("#watch-url")!;
 const copyBtn = document.querySelector<HTMLButtonElement>("#copy-watch")!;
+
+// AI Eyes PiP ("what the fighters see"). Painted from the public match
+// snapshot only — never from join codes or host tokens, which the watch
+// page does not receive. Re-rendered only when the tick or mode changes:
+// the host calls renderPublic every animation frame.
+const eyesPip = document.querySelector<HTMLElement>("#eyes-pip");
+let pipMode: PipMode = "both";
+let lastPipTick = -1;
+let lastPipMode: PipMode | null = null;
+let lastPublic: MatchPublicState | null = null;
+
+function updateEyesPip(s: MatchPublicState): void {
+  if (!eyesPip) return;
+  if (s.tick === lastPipTick && pipMode === lastPipMode) return;
+  lastPipTick = s.tick;
+  lastPipMode = pipMode;
+  applyPipMode(eyesPip, pipMode);
+  if (pipMode === "off") return;
+  for (const frame of renderPipFramesFromPublic(s, pipMode)) {
+    const canvas = document.querySelector<HTMLCanvasElement>(`#eyes-${frame.side}`);
+    if (canvas) paintPovFrame(canvas, frame);
+    const name = frame.side === "p1" ? s.p1.character : s.p2.character;
+    setPipLabel(eyesPip, frame.side, pipLabel(frame.side, name));
+  }
+}
+
+if (eyesPip) {
+  applyPipMode(eyesPip, pipMode);
+  for (const btn of Array.from(eyesPip.querySelectorAll<HTMLButtonElement>("[data-pip-mode]"))) {
+    btn.addEventListener("click", () => {
+      pipMode = parsePipMode(btn.getAttribute("data-pip-mode"));
+      if (lastPublic) updateEyesPip(lastPublic);
+      else applyPipMode(eyesPip, pipMode);
+    });
+  }
+}
 
 let currentOpenSeat: OpenSeat = "none";
 
@@ -81,6 +119,7 @@ function renderCard(side: "p1" | "p2", f: FighterSnapshot): void {
 }
 
 function renderPublic(s: MatchPublicState): void {
+  lastPublic = s;
   if (s.openSeat) currentOpenSeat = s.openSeat;
   setText("p1-name", s.p1.character);
   setText("p2-name", s.p2.character);
@@ -122,6 +161,7 @@ function renderPublic(s: MatchPublicState): void {
   } else {
     overlay.classList.remove("open");
   }
+  updateEyesPip(s);
 }
 
 function logLine(text: string, kind: string): void {

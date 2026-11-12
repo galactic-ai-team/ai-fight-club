@@ -149,6 +149,29 @@
           <canvas id="stage" width="960" height="540" aria-label="Fight stage"></canvas>
         </div>
 
+        <section id="eyes-pip" aria-label="What the fighters see">
+          <div class="eyes-pip-head">
+            <h2>What the fighters see</h2>
+            <div class="eyes-pip-toggle" role="group" aria-label="Eyes view">
+              <button type="button" data-pip-mode="p1" aria-pressed="false">P1</button>
+              <button type="button" data-pip-mode="p2" aria-pressed="false">P2</button>
+              <button type="button" data-pip-mode="both" aria-pressed="true">Both</button>
+              <button type="button" data-pip-mode="off" aria-pressed="false">Off</button>
+            </div>
+          </div>
+          <p class="eyes-pip-note">First-person view from each fighter — not a second broadcast camera. No numbers, no codes.</p>
+          <div class="eyes-pip-frames">
+            <figure class="eyes-pip-frame" data-pip-side="p1">
+              <canvas id="eyes-p1" width="160" height="120" aria-label="P1 first-person view"></canvas>
+              <figcaption data-pip-label="p1">Ion — what they see</figcaption>
+            </figure>
+            <figure class="eyes-pip-frame" data-pip-side="p2">
+              <canvas id="eyes-p2" width="160" height="120" aria-label="P2 first-person view"></canvas>
+              <figcaption data-pip-label="p2">Quark — what they see</figcaption>
+            </figure>
+          </div>
+        </section>
+
         <div id="cmd-panels">
           <div class="cmd-card p1" id="card-p1">
             <div class="who" id="card-p1-who">P1 · Lumi</div>
