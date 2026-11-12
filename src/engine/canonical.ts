@@ -1,4 +1,4 @@
-import type { Fighter, MatchState } from "./types.ts";
+import type { Fighter, MatchEvent, MatchState } from "./types.ts";
 
 function fighterSnap(f: Fighter): Record<string, number | string | boolean | null> {
   return {
@@ -10,7 +10,9 @@ function fighterSnap(f: Fighter): Record<string, number | string | boolean | nul
     vy: f.vy,
     facing: f.facing,
     health: f.health,
+    maxHealth: f.maxHealth,
     meter: f.meter,
+    maxMeter: f.maxMeter,
     state: f.state,
     stateT: f.stateT,
     attack: f.attack,
@@ -33,6 +35,24 @@ function fighterSnap(f: Fighter): Record<string, number | string | boolean | nul
   };
 }
 
+
+/** Explicit field order makes history part of the canonical state. */
+function eventSnap(event: MatchEvent): Record<string, number | string | boolean> {
+  switch (event.type) {
+    case "hit":
+      return { type: event.type, tick: event.tick, attacker: event.attacker,
+        defender: event.defender, kind: event.kind, damage: event.damage, blocked: event.blocked };
+    case "ko":
+      return { type: event.type, tick: event.tick, winner: event.winner, loser: event.loser };
+    case "timeout":
+      return { type: event.type, tick: event.tick, winner: event.winner };
+    case "round_end":
+      return { type: event.type, tick: event.tick, winner: event.winner, round: event.round };
+    case "match_end":
+      return { type: event.type, tick: event.tick, winner: event.winner };
+  }
+}
+
 /** Stable, JSON-stringifiable snapshot used for determinism tests and replay checks. */
 export function canonicalState(state: MatchState): string {
   const snap = {
@@ -42,6 +62,8 @@ export function canonicalState(state: MatchState): string {
     phase: state.phase,
     p1Wins: state.p1Wins,
     p2Wins: state.p2Wins,
+    bestOf: state.bestOf,
+    winsNeeded: state.winsNeeded,
     over: state.over,
     matchWinner: state.matchWinner,
     round: {
@@ -53,6 +75,8 @@ export function canonicalState(state: MatchState): string {
     },
     p1: fighterSnap(state.p1),
     p2: fighterSnap(state.p2),
+    events: state.events.map(eventSnap),
+    lastEvents: state.lastEvents.map(eventSnap),
   };
   return JSON.stringify(snap);
 }

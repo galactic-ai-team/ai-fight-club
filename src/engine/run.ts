@@ -1,4 +1,5 @@
 import { appendInput, emptyReplay } from "./replay.ts";
+import { normalizeAction } from "./action.ts";
 import { observe } from "./observe.ts";
 import { createMatch, stepMatch } from "./sim.ts";
 import type { Bot } from "../bots/types.ts";
@@ -32,8 +33,10 @@ export function runMatch(
   p2.start?.({ side: "p2", seed: opts.seed, opponentId: p1.id });
 
   while (!state.over && state.tick < MAX_TICKS) {
-    const a1 = p1.act(observe(state, "p1"));
-    const a2 = p2.act(observe(state, "p2"));
+    // Record precisely the same normalized inputs the simulator consumes.
+    // This prevents desyncs from untrusted getters or malformed bot output.
+    const a1 = normalizeAction(p1.act(observe(state, "p1")));
+    const a2 = normalizeAction(p2.act(observe(state, "p2")));
     appendInput(replay, a1, a2);
     stepMatch(state, a1, a2);
   }

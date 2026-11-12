@@ -9,17 +9,23 @@ const ATTACKS = new Set<AttackInput>(["none", "light", "heavy", "special"]);
  * Invalid or missing fields become neutral. Never throws.
  */
 export function normalizeAction(raw: unknown): Action {
-  if (raw === null || raw === undefined || typeof raw !== "object") {
+  // Reading each property exactly once matters for untrusted getters.
+  try {
+    if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+      return { ...NEUTRAL_ACTION };
+    }
+    const o = raw as Record<string, unknown>;
+    const m = o.move;
+    const v = o.vertical;
+    const a = o.attack;
+    const b = o.block;
+    const move = MOVES.has(m as MoveDir) ? (m as MoveDir) : "none";
+    const vertical = VERTICALS.has(v as Vertical) ? (v as Vertical) : "none";
+    const attack = ATTACKS.has(a as AttackInput) ? (a as AttackInput) : "none";
+    return { move, vertical, attack, block: b === true };
+  } catch {
     return { ...NEUTRAL_ACTION };
   }
-  const o = raw as Record<string, unknown>;
-  const move = MOVES.has(o.move as MoveDir) ? (o.move as MoveDir) : "none";
-  const vertical = VERTICALS.has(o.vertical as Vertical)
-    ? (o.vertical as Vertical)
-    : "none";
-  const attack = ATTACKS.has(o.attack as AttackInput) ? (o.attack as AttackInput) : "none";
-  const block = o.block === true;
-  return { move, vertical, attack, block };
 }
 
 export function actionEqual(a: Action, b: Action): boolean {
