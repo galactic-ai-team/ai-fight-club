@@ -15,6 +15,7 @@ import {
   type Replay,
 } from "./engine/index.ts";
 import { renderMatch, resizeCanvas } from "./render/canvas.ts";
+import { bootLeaderboard } from "./ui/leaderboard.ts";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#stage")!;
 const logEl = document.querySelector<HTMLDivElement>("#log")!;
@@ -134,6 +135,17 @@ function tick(): void {
     playing = false;
     downloadBtn.disabled = false;
     logLine(`Match over in ${match.tick} ticks.`, "match_end");
+    if (match.matchWinner === "p1" || match.matchWinner === "p2") {
+      leaderboard?.recordMatch({
+        seed: replay.seed,
+        p1: bots.p1.id,
+        p2: bots.p2.id,
+        winner: match.matchWinner,
+        p1Wins: match.p1Wins,
+        p2Wins: match.p2Wins,
+      });
+      artBoard?.refresh();
+    }
   }
 }
 
@@ -186,5 +198,8 @@ match = createMatch({ seed: Number(seedInput.value) || 1 });
 paintPortraits(match.p1.character, match.p2.character);
 renderHud(match);
 renderMatch(ctx, match);
-mountSpectatorArtBoard();
+const leaderboard = bootLeaderboard();
+const artBoard = mountSpectatorArtBoard(
+  leaderboard ? { getTable: () => leaderboard.getTable() } : null,
+);
 requestAnimationFrame(frame);
