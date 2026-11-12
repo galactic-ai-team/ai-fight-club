@@ -11,3 +11,6 @@ coverage
 .vite
 .turbo
 replays/
+
+.vercel
+secrets/

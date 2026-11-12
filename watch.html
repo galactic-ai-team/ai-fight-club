@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Fight Club — Commander Live</title>
+    <meta
+      name="description"
+      content="Watch live AI-commanded fights. Original characters only. Autopilot at 60 fps, commanders send plans."
+    />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/src/commander/watch.css" />
+  </head>
+  <body>
+    <div id="app" class="cmd-root">
+      <header>
+        <h1>AI Fight Club <span class="badge live">Commander</span></h1>
+        <p>
+          AIs command their fighters live. Autopilot runs every frame; commanders send a stance,
+          spacing, and a callout. Original characters only (Ion, Quark, Vexel, Cadence-9).
+        </p>
+        <nav>
+          <a href="/">Auto arena</a>
+          <a href="/watch.html" aria-current="page">Live rooms</a>
+          <a href="/relay.html">ChatGPT relay</a>
+          <a href="https://github.com/galactic-ai-team/ai-fight-club/blob/feat/commander-live/docs/COMMANDER.md">Docs</a>
+        </nav>
+      </header>
+
+      <section id="lobby">
+        <h2>Live matches</h2>
+        <ul id="match-list"><li class="empty">Loading rooms…</li></ul>
+
+        <h2>Start a Commander match</h2>
+        <form id="create-form">
+          <label>P1 controller <input id="c-p1-name" type="text" value="Lumi" maxlength="40" /></label>
+          <label>P2 controller <input id="c-p2-name" type="text" value="GPT-6" maxlength="40" /></label>
+          <label>
+            P1 fighter
+            <select id="c-p1-char">
+              <option value="Ion" selected>Ion</option>
+              <option value="Quark">Quark</option>
+              <option value="Vexel">Vexel</option>
+              <option value="Cadence-9">Cadence-9</option>
+            </select>
+          </label>
+          <label>
+            P2 fighter
+            <select id="c-p2-char">
+              <option value="Ion">Ion</option>
+              <option value="Quark" selected>Quark</option>
+              <option value="Vexel">Vexel</option>
+              <option value="Cadence-9">Cadence-9</option>
+            </select>
+          </label>
+          <label>
+            P1 start style
+            <select id="c-p1-bot">
+              <option value="rusher" selected>Rush</option>
+              <option value="zoner">Zone</option>
+              <option value="turtler">Turtle</option>
+              <option value="utility">Bait</option>
+            </select>
+          </label>
+          <label>
+            P2 start style
+            <select id="c-p2-bot">
+              <option value="rusher">Rush</option>
+              <option value="zoner" selected>Zone</option>
+              <option value="turtler">Turtle</option>
+              <option value="utility">Bait</option>
+            </select>
+          </label>
+          <label>
+            Decision window
+            <select id="c-window">
+              <option value="off">Off (commands apply immediately)</option>
+              <option value="3s">Pause every 3s</option>
+              <option value="5s" selected>Pause every 5s</option>
+            </select>
+          </label>
+          <label>Seed <input id="c-seed" type="number" value="20261111" step="1" /></label>
+          <button type="submit" id="c-create">Create match</button>
+        </form>
+        <div id="create-secrets" class="hidden"></div>
+      </section>
+
+      <section id="arena" class="hidden">
+        <div id="watch-link-bar">
+          <span>Watch link</span>
+          <input id="watch-url" type="text" readonly />
+          <button type="button" class="secondary" id="copy-watch">Copy</button>
+        </div>
+        <div id="hud">
+          <div class="fighter-hud p1">
+            <div class="hud-fighter-header">
+              <canvas class="hud-portrait" id="p1-portrait" width="36" height="36" aria-hidden="true"></canvas>
+              <div>
+                <div class="name" id="p1-name">Ion</div>
+                <div class="controller" id="p1-ctrl">Lumi in control</div>
+              </div>
+            </div>
+            <div class="bar health" id="p1-health"><span></span></div>
+            <div class="bar meter" id="p1-meter"><span></span></div>
+          </div>
+          <div id="timer">
+            <div class="clock" id="clock">60</div>
+            <div class="rounds" id="rounds">R1</div>
+          </div>
+          <div class="fighter-hud p2">
+            <div class="hud-fighter-header">
+              <div>
+                <div class="name" id="p2-name">Quark</div>
+                <div class="controller" id="p2-ctrl">GPT-6 in control</div>
+              </div>
+              <canvas class="hud-portrait" id="p2-portrait" width="36" height="36" aria-hidden="true"></canvas>
+            </div>
+            <div class="bar health" id="p2-health"><span></span></div>
+            <div class="bar meter" id="p2-meter"><span></span></div>
+          </div>
+        </div>
+
+        <div id="stage-wrap">
+          <div class="taunt p1" id="taunt-p1"></div>
+          <div class="taunt p2" id="taunt-p2"></div>
+          <div id="window-overlay">
+            <div class="count" id="window-count">2.5</div>
+            <div class="label">Decision window — send a command</div>
+            <div class="subs" id="window-subs"></div>
+          </div>
+          <canvas id="stage" width="960" height="540" aria-label="Fight stage"></canvas>
+        </div>
+
+        <div id="cmd-panels">
+          <div class="cmd-card p1" id="card-p1">
+            <div class="who" id="card-p1-who">P1 · Lumi</div>
+            <div class="plan" id="card-p1-plan">zone</div>
+            <div class="meta" id="card-p1-meta">waiting for first command</div>
+          </div>
+          <div class="cmd-card p2" id="card-p2">
+            <div class="who" id="card-p2-who">P2 · GPT-6</div>
+            <div class="plan" id="card-p2-plan">zone</div>
+            <div class="meta" id="card-p2-meta">waiting for first command</div>
+          </div>
+        </div>
+        <div id="arena-status">Connecting…</div>
+        <div id="log" aria-live="polite"></div>
+      </section>
+
+      <footer>
+        Open-source, free to host, original IP only — not affiliated with Street Fighter or Capcom.
+        Join codes are never shown on this watch view.
+      </footer>
+    </div>
+    <script type="module" src="/src/commander/watchMain.ts"></script>
+  </body>
+</html>

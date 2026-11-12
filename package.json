@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "ladder": "npx tsx scripts/run-ladder.ts"
+    "ladder": "npx tsx scripts/run-ladder.ts",
+    "commander": "npx tsx scripts/commander.ts"
   },
   "devDependencies": {
     "typescript": "^5.9.3",
