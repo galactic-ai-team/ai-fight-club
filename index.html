@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
-    <div id="app">
+    <div id="app" class="spectator-root">
       <header>
         <h1>AI Fight Club</h1>
         <p>
@@ -21,9 +21,12 @@
         </p>
       </header>
 
-      <div id="hud">
-        <div class="fighter-hud p1">
-          <div class="name" id="p1-name">Ion · Rusher</div>
+      <div id="hud" class="spectator-hud">
+        <div class="fighter-hud p1 hud-fighter">
+          <div class="hud-fighter-header">
+            <canvas class="hud-portrait" id="p1-portrait" width="36" height="36" aria-hidden="true"></canvas>
+            <div class="name" id="p1-name">Ion · Rusher</div>
+          </div>
           <div class="bar health" id="p1-health"><span></span></div>
           <div class="bar meter" id="p1-meter"><span></span></div>
         </div>
@@ -37,15 +40,18 @@
             <span class="dot p2" data-n="2">●</span>
           </div>
         </div>
-        <div class="fighter-hud p2">
-          <div class="name" id="p2-name">Quark · Random</div>
+        <div class="fighter-hud p2 hud-fighter">
+          <div class="hud-fighter-header">
+            <canvas class="hud-portrait" id="p2-portrait" width="36" height="36" aria-hidden="true"></canvas>
+            <div class="name" id="p2-name">Quark · Random</div>
+          </div>
           <div class="bar health" id="p2-health"><span></span></div>
           <div class="bar meter" id="p2-meter"><span></span></div>
         </div>
       </div>
 
-      <div id="stage-wrap">
-        <canvas id="stage" width="960" height="540" aria-label="Fight stage"></canvas>
+      <div id="stage-wrap" class="spectator-stage-wrap">
+        <canvas id="stage" class="spectator-canvas" width="960" height="540" aria-label="Fight stage"></canvas>
       </div>
 
       <div id="below">
@@ -76,6 +82,8 @@
         </form>
         <div id="log" aria-live="polite"></div>
       </div>
+
+      <section id="leaderboard-root"></section>
 
       <footer>
         Open-source, free to host, original IP only — not affiliated with Street Fighter or
