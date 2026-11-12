@@ -1,5 +1,10 @@
 import { createBot, type Bot } from "./bots/index.ts";
 import {
+  NEXT_MATCH_DELAY_MS,
+  characterPairAt,
+  pairingAt,
+} from "./spectator/autoplay.ts";
+import {
   commentOnEvents,
   matchStartLine,
   type CommentaryContext,
@@ -38,7 +43,11 @@ const downloadBtn = document.querySelector<HTMLButtonElement>("#download")!;
 const form = document.querySelector<HTMLFormElement>("#controls")!;
 const p1Sel = document.querySelector<HTMLSelectElement>("#p1-bot")!;
 const p2Sel = document.querySelector<HTMLSelectElement>("#p2-bot")!;
+const p1CharSel = document.querySelector<HTMLSelectElement>("#p1-char");
+const p2CharSel = document.querySelector<HTMLSelectElement>("#p2-char");
 const seedInput = document.querySelector<HTMLInputElement>("#seed")!;
+const autoplayBox = document.querySelector<HTMLInputElement>("#autoplay");
+const autoplayStatus = document.querySelector<HTMLDivElement>("#autoplay-status");
 
 const ctx = canvas.getContext("2d")!;
 resizeCanvas(canvas);
@@ -53,6 +62,35 @@ let replay: Replay | null = null;
 let playing = false;
 let acc = 0;
 let last = 0;
+let pairingIndex = 0;
+let nextTimer: number | null = null;
+
+function autoPlayEnabled(): boolean {
+  return autoplayBox ? autoplayBox.checked : true;
+}
+
+function setAutoStatus(text: string): void {
+  if (autoplayStatus) autoplayStatus.textContent = text;
+}
+
+function clearNextTimer(): void {
+  if (nextTimer !== null) {
+    window.clearTimeout(nextTimer);
+    nextTimer = null;
+  }
+}
+
+function applyPairing(p1Bot: string, p2Bot: string, p1Char: string, p2Char: string): void {
+  p1Sel.value = p1Bot;
+  p2Sel.value = p2Bot;
+  if (p1CharSel) p1CharSel.value = p1Char;
+  if (p2CharSel) p2CharSel.value = p2Char;
+}
+
+function selectedCharacter(sel: HTMLSelectElement | null, fallback: string): string {
+  const value = sel?.value?.trim();
+  return value ? value : fallback;
+}
 
 function resetLog(): void {
   logEl.innerHTML = "";
@@ -143,10 +181,13 @@ function renderHud(state: MatchState): void {
 }
 
 function startMatch(): void {
+  clearNextTimer();
   const seed = Number(seedInput.value) || 1;
   const p1 = createBot(p1Sel.value);
   const p2 = createBot(p2Sel.value);
-  match = createMatch({ seed });
+  const p1Character = selectedCharacter(p1CharSel, "Ion");
+  const p2Character = selectedCharacter(p2CharSel, "Quark");
+  match = createMatch({ seed, p1Character, p2Character });
   bots = { p1, p2 };
   replay = emptyReplay({
     seed,
@@ -208,6 +249,7 @@ function tick(): void {
       });
       artBoard?.refresh();
     }
+    scheduleNextMatch();
   }
 }
 
@@ -232,9 +274,34 @@ function frame(now: number): void {
   renderMatch(ctx, match);
 }
 
+function scheduleNextMatch(): void {
+  clearNextTimer();
+  if (!autoPlayEnabled()) {
+    setAutoStatus("Auto-play off. Pick two fighters and hit Fight to restart.");
+    return;
+  }
+  pairingIndex += 1;
+  const [p1Bot, p2Bot] = pairingAt(pairingIndex);
+  const [p1Char, p2Char] = characterPairAt(pairingIndex);
+  const secs = NEXT_MATCH_DELAY_MS / 1000;
+  setAutoStatus(`Next up: ${p1Char} (${p1Bot}) vs ${p2Char} (${p2Bot}) in ${secs}s`);
+  nextTimer = window.setTimeout(() => {
+    seedInput.value = String((Number(seedInput.value) || 1) + 1);
+    applyPairing(p1Bot, p2Bot, p1Char, p2Char);
+    startMatch();
+    setAutoStatus(`Live auto-play · ${p1Char} vs ${p2Char}`);
+  }, NEXT_MATCH_DELAY_MS);
+}
+
 form.addEventListener("submit", (e) => {
   e.preventDefault();
+  clearNextTimer();
   startMatch();
+  setAutoStatus(
+    autoPlayEnabled()
+      ? `Live · ${selectedCharacter(p1CharSel, "Ion")} vs ${selectedCharacter(p2CharSel, "Quark")} (auto next on)`
+      : `Live · ${selectedCharacter(p1CharSel, "Ion")} vs ${selectedCharacter(p2CharSel, "Quark")}`,
+  );
 });
 
 pauseBtn.addEventListener("click", () => {
@@ -255,13 +322,27 @@ downloadBtn.addEventListener("click", () => {
   URL.revokeObjectURL(url);
 });
 
-// Show a still of the opening positions before the first fight.
-match = createMatch({ seed: Number(seedInput.value) || 1 });
-paintPortraits(match.p1.character, match.p2.character);
-renderHud(match);
-renderMatch(ctx, match);
 const leaderboard = bootLeaderboard();
 const artBoard = mountSpectatorArtBoard(
   leaderboard ? { getTable: () => leaderboard.getTable() } : null,
 );
+
+autoplayBox?.addEventListener("change", () => {
+  if (autoPlayEnabled()) {
+    if (match?.over || !playing) scheduleNextMatch();
+    else setAutoStatus("Auto-play on. Next pairing starts after this match.");
+  } else {
+    clearNextTimer();
+    setAutoStatus("Auto-play off. Pick two fighters and hit Fight to restart.");
+  }
+});
+
+// Auto-start a live bot-vs-bot match on load, then cycle a round-robin.
+{
+  const [p1Bot, p2Bot] = pairingAt(0);
+  const [p1Char, p2Char] = characterPairAt(0);
+  applyPairing(p1Bot, p2Bot, p1Char, p2Char);
+  startMatch();
+  setAutoStatus(`Live auto-play · ${p1Char} vs ${p2Char}`);
+}
 requestAnimationFrame(frame);

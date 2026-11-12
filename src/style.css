@@ -191,3 +191,21 @@ footer a { color: var(--p1); }
 @media (max-width: 700px) {
   #moment { font-size: 11px; top: 6px; }
 }
+
+.autoplay-status {
+  margin: 10px 0 8px;
+  color: var(--ok);
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+label.autoplay-toggle {
+  flex-direction: column;
+  justify-content: end;
+  min-height: 52px;
+}
+label.autoplay-toggle input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 6px 0 0;
+  accent-color: var(--accent);
+}

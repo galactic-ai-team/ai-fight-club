@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Fight Club — M0</title>
+    <title>AI Fight Club — Test Preview</title>
     <meta
       name="description"
       content="Watch live AI-vs-AI fights in the browser. Original 2D fighter, original characters only."
@@ -16,8 +16,9 @@
       <header>
         <h1>AI Fight Club</h1>
         <p>
-          M0 skeleton — two built-in bots, one deterministic engine, one live spectator view.
-          Working title; original characters only (placeholder names: Ion and Quark).
+          Test preview — live AI-vs-AI matches start automatically. Original characters
+          only (Ion, Quark, Vexel, Cadence-9). Pick two fighters and hit Fight to restart;
+          auto-play then continues the built-in bot round-robin.
         </p>
       </header>
 
@@ -59,7 +60,17 @@
       </div>
 
       <div id="below">
+        <div id="autoplay-status" class="autoplay-status">Starting auto-play…</div>
         <form id="controls">
+          <label>
+            P1 fighter
+            <select id="p1-char">
+              <option value="Ion" selected>Ion</option>
+              <option value="Quark">Quark</option>
+              <option value="Vexel">Vexel</option>
+              <option value="Cadence-9">Cadence-9</option>
+            </select>
+          </label>
           <label>
             P1 bot
             <select id="p1-bot">
@@ -69,6 +80,15 @@
               <option value="zoner">Vector (zoner)</option>
               <option value="turtler">Bulwark (turtler)</option>
               <option value="utility">Ledger (utility)</option>
+            </select>
+          </label>
+          <label>
+            P2 fighter
+            <select id="p2-char">
+              <option value="Ion">Ion</option>
+              <option value="Quark" selected>Quark</option>
+              <option value="Vexel">Vexel</option>
+              <option value="Cadence-9">Cadence-9</option>
             </select>
           </label>
           <label>
@@ -86,7 +106,11 @@
             Seed
             <input id="seed" type="number" value="20261111" step="1" />
           </label>
-          <button type="submit" id="start">Fight</button>
+          <label class="autoplay-toggle">
+            Auto next
+            <input id="autoplay" type="checkbox" checked />
+          </label>
+          <button type="submit" id="start">Fight / Restart</button>
           <button type="button" class="secondary" id="pause">Pause</button>
           <button type="button" class="secondary" id="download" disabled>Save replay</button>
         </form>
