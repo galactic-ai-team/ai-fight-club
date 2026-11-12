@@ -1,5 +1,9 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "framework": "vite"
+  "framework": "vite",
+  "rewrites": [
+    { "source": "/api/match/:id/:verb", "destination": "/api/match?id=:id&verb=:verb" },
+    { "source": "/api/match/:id", "destination": "/api/match?id=:id" }
+  ]
 }

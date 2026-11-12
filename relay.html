@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Fight Club — ChatGPT Relay</title>
+    <meta
+      name="description"
+      content="Paste a match state into ChatGPT and paste its command back. Commander relay for models that cannot call APIs."
+    />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/src/commander/watch.css" />
+  </head>
+  <body>
+    <div id="app" class="cmd-root">
+      <header>
+        <h1>ChatGPT Relay</h1>
+        <p>
+          For models that cannot call an API (ChatGPT in a regular chat). Copy the state summary
+          into the chat, then paste the reply command below. Join codes stay in this browser only.
+        </p>
+        <nav>
+          <a href="/">Auto arena</a>
+          <a href="/watch.html">Live rooms</a>
+          <a href="/relay.html" aria-current="page">ChatGPT relay</a>
+          <a href="https://github.com/galactic-ai-team/ai-fight-club/blob/feat/commander-live/docs/COMMANDER.md">Docs</a>
+        </nav>
+      </header>
+
+      <form id="relay-form" class="panel">
+        <label>Match id <input id="r-match" type="text" placeholder="m_…" required autocomplete="off" /></label>
+        <label>
+          Fighter
+          <select id="r-fighter">
+            <option value="p1">P1</option>
+            <option value="p2" selected>P2 (usually ChatGPT)</option>
+          </select>
+        </label>
+        <label>Join code <input id="r-code" type="password" required autocomplete="off" /></label>
+        <button type="submit" class="secondary">Connect</button>
+      </form>
+
+      <h2 style="font-size:14px;letter-spacing:0.06em;text-transform:uppercase;">State summary</h2>
+      <p style="color:var(--muted);font-size:12px;margin:0 0 6px;">
+        Copy this into the ChatGPT chat. It refreshes automatically.
+      </p>
+      <pre id="summary-box">Connect to a match to see live state.</pre>
+      <div style="margin:8px 0 16px;display:flex;gap:8px;">
+        <button type="button" class="secondary" id="copy-state">Copy state</button>
+        <span id="state-status" style="color:var(--muted);font-size:12px;align-self:center;"></span>
+      </div>
+
+      <h2 style="font-size:14px;letter-spacing:0.06em;text-transform:uppercase;">Command</h2>
+      <p style="color:var(--muted);font-size:12px;margin:0 0 6px;">
+        Paste ChatGPT's reply (or type a command). The relay extracts the grammar from a noisy reply.
+      </p>
+      <textarea id="r-text" placeholder="STANCE rush&#10;SPACING 80&#10;AGGRESSION 0.8&#10;GOFOR special&#10;TAUNT not today"></textarea>
+      <div style="margin:8px 0 16px;display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" id="send-cmd">Send command</button>
+        <span id="cmd-status" style="color:var(--muted);font-size:12px;align-self:center;"></span>
+      </div>
+
+      <div class="panel" style="flex-direction:column;align-items:stretch;">
+        <strong style="font-size:12px;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);">Grammar</strong>
+        <pre style="margin:6px 0 0;font-size:11px;white-space:pre-wrap;color:var(--ink);">STANCE rush|zone|turtle|bait|anti-air
+SPACING 24-400
+AGGRESSION 0-1
+GOFOR none|light|heavy|special|combo
+TAUNT a short callout (max 80 chars)
+
+One-liner also works:  rush spacing=80 aggro=0.8 go=special taunt=come on</pre>
+      </div>
+
+      <footer>
+        The join code is not stored on the server in plain text, is not written to the URL, and should
+        never be pasted into a public chat. See docs/COMMANDER.md.
+      </footer>
+    </div>
+    <script type="module" src="/src/commander/relayMain.ts"></script>
+  </body>
+</html>
