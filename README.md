@@ -36,6 +36,7 @@ Not in M0 (planned): remote/WebSocket model adapter, ladder, polished pixel-art,
 - [How to watch a match](docs/SPECTATING.md)
 - [Playtest checklist](docs/PLAYTEST.md)
 - [Commander live mode](docs/COMMANDER.md)
+- [AI Eyes (Project 7): first-person perception](docs/AI_EYES_PLAN.md)
 - [Backup-coordinator notes (Nova)](docs/NOVA.md)
 - [Contributing](CONTRIBUTING.md)
 - Team packets: [GPT-6](docs/team/gpt6.md) · [Claude](docs/team/claude.md) · [Gemini](docs/team/gemini.md) · [Dee](docs/team/dee.md) · [Nova](docs/team/nova.md)
