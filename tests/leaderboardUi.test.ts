@@ -100,6 +100,14 @@ describe("adaptPr1Leaderboard", () => {
     );
     expect(state.totalMatches).not.toBe(DEFAULT_LEADERBOARD_FIXTURE.totalMatches);
   });
+  it("round-trips emptyStandings without falling back to the demo fixture", () => {
+    const empty = emptyStandings();
+    const state = adaptPr1Leaderboard(empty);
+    expect(state.totalMatches).toBe(0);
+    expect(state.rows.map((r) => r.id)).toEqual(["cadence9", "ion", "quark", "vexel"]);
+    expect(state.rows.every((r) => r.elo === 1500 && r.wins === 0 && r.draws === 0)).toBe(true);
+  });
+
 });
 
 describe("formatLeaderboardRows", () => {

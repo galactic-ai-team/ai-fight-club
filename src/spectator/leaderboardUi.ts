@@ -134,6 +134,9 @@ export function adaptPr1Leaderboard(
       rawList = obj.getLeaderboard();
     } else if (Array.isArray(obj.entries)) {
       rawList = obj.entries;
+    } else if (Array.isArray(obj.rows)) {
+      // Already-normalized state from emptyStandings() / getState().
+      rawList = obj.rows;
     } else if (Array.isArray(obj.standings)) {
       rawList = obj.standings;
     } else if (Array.isArray(obj.leaderboard)) {
