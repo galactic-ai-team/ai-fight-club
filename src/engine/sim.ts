@@ -407,9 +407,12 @@ function tryHits(state: MatchState, events: MatchEvent[]): void {
     p1.state !== "knockdown" &&
     overlaps(p2.hitbox, p1.hurtbox);
 
-  // Trades are allowed: both hits apply on the same tick.
-  if (p1Hit && p1.attack) applyHit(p1, p2, p1.attack, tick, events);
-  if (p2Hit && p2.attack) applyHit(p2, p1, p2.attack, tick, events);
+  // Snapshot both attack kinds before applying damage: the first hit may
+  // clear the other fighter's attack, but must not erase a same-tick trade.
+  const p1Kind = p1Hit ? p1.attack : null;
+  const p2Kind = p2Hit ? p2.attack : null;
+  if (p1Kind) applyHit(p1, p2, p1Kind, tick, events);
+  if (p2Kind) applyHit(p2, p1, p2Kind, tick, events);
 
   // A connecting hitbox is one-shot so it does not re-hit every active frame.
   if (p1Hit) {

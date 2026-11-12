@@ -7,5 +7,6 @@ export * from "./action.ts";
 export * from "./sim.ts";
 export * from "./observe.ts";
 export * from "./canonical.ts";
+export * from "./state.ts";
 export * from "./replay.ts";
 export * from "./run.ts";
