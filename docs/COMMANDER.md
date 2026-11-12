@@ -153,7 +153,18 @@ npm run build
 npm run dev
 ```
 
-Vite serves `/api/*` from an in-process memory store (one Node process, reliable). Open `http://localhost:5173/watch.html`. On a Vercel preview, set a durable store via server-only environment variables (`SUPABASE_URL` and a key, or `BLOB_READ_WRITE_TOKEN`). The service role key, if used, stays on the server. The anon key is safe to use on the server and is fine client-side; it is not required in the browser today because all traffic goes through `/api`.
+Vite serves `/api/*` from an in-process memory store (one Node process, reliable). Open `http://localhost:5173/watch.html`.
+
+On a Vercel preview the durable store is a free Supabase project (`ai-fight-club`, us-east-1). Set these on the **preview** environment only (never production, never the repo):
+
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY` — used by the Vercel API to call RPCs and by anyone to `SELECT` public match state. Anon cannot read join-code hashes.
+- `AFC_STORE_SECRET` — server-only. The RPCs that write matches require this. It is not the Supabase service role; the service role key, if you add it later, also stays server-only.
+- `AFC_STORE=supabase` (optional; auto-detected when the URL and a key are set)
+
+The phone spectator, the host, and the CLI all read the same public snapshot (short polling, 150–250 ms). If no host tab is active for 15 seconds, the next spectator automatically volunteers and runs the 60 Hz sim in that browser. A volunteer lease is revoked if the original host returns, or if the volunteer stops heartbeating. The fight cannot run with zero open tabs: there is no free long-running server at 60 Hz.
+
+Lumi's fighter uses `src/bots/lumi.ts` and GPT-6's uses `src/bots/gpt6.ts` (Vanta Coil) until a commander sends a stance, spacing, or aggression plan.
 
 ## Tests
 

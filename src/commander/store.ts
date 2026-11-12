@@ -29,6 +29,7 @@ export interface StoredMatch {
   p1CodeHash: string;
   p2CodeHash: string;
   hostTokenHash: string;
+  volunteerTokenHash: string;
   status: "waiting" | "live" | "ended" | "stale";
   pending: CommandRecord[];
   log: CommandRecord[];
@@ -58,6 +59,7 @@ export interface MatchStore {
   pullPending(id: string, hostToken: string, sinceSeq: number, nowMs?: number): Promise<CommandRecord[]>;
   publishState(id: string, hostToken: string, state: MatchPublicState, nowMs?: number): Promise<void>;
   claimHost(id: string, hostToken: string, nowMs?: number): Promise<boolean>;
+  volunteerHost(id: string, nowMs?: number): Promise<{ token: string; record: StoredMatch }>;
   markApplied(id: string, hostToken: string, seq: number, tick: number, nowMs?: number): Promise<void>;
 }
 
@@ -158,6 +160,7 @@ export class MemoryStore implements MatchStore {
       p1CodeHash: await hashToken(p1Code),
       p2CodeHash: await hashToken(p2Code),
       hostTokenHash: await hashToken(hostToken),
+      volunteerTokenHash: "",
       status: "waiting",
       pending: [],
       log: [],
@@ -198,10 +201,16 @@ export class MemoryStore implements MatchStore {
     return m;
   }
 
-  private async requireHost(m: StoredMatch, token: string): Promise<void> {
-    if (!(await tokensMatch(token, m.hostTokenHash))) {
-      throw new StoreError(401, "invalid host token");
+  private async requireHost(m: StoredMatch, token: string): Promise<"host" | "volunteer"> {
+    if (await tokensMatch(token, m.hostTokenHash)) {
+      // Original host reclaiming clears any volunteer lease to avoid two sims.
+      m.volunteerTokenHash = "";
+      return "host";
     }
+    if (m.volunteerTokenHash && (await tokensMatch(token, m.volunteerTokenHash))) {
+      return "volunteer";
+    }
+    throw new StoreError(401, "invalid host token");
   }
 
   async submitCommand(
@@ -294,6 +303,31 @@ export class MemoryStore implements MatchStore {
     if (m.status === "waiting") m.status = "live";
     this.matches.set(id, m);
     return true;
+  }
+
+  async volunteerHost(id: string, nowMs = Date.now()): Promise<{ token: string; record: StoredMatch }> {
+    const m = await this.requireMatch(id, nowMs);
+    const stale = !m.hostPresent || nowMs - m.hostSeenAtMs > STALE_HOST_MS;
+    if (!stale) {
+      throw new StoreError(409, "host already active");
+    }
+    const token = newHostToken();
+    m.volunteerTokenHash = await hashToken(token);
+    m.hostPresent = true;
+    m.hostSeenAtMs = nowMs;
+    if (m.status === "waiting" || m.status === "stale") m.status = "live";
+    this.matches.set(id, m);
+    return { token, record: m };
+  }
+
+  /** Seed this store with a record (used by the Supabase adapter). */
+  loadRecord(record: StoredMatch): void {
+    this.matches.set(record.id, record);
+  }
+
+  exportRecord(id: string): StoredMatch | undefined {
+    const m = this.matches.get(id);
+    return m ? structuredClone(m) : undefined;
   }
 
   async markApplied(

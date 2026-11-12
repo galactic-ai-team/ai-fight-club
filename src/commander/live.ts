@@ -1,10 +1,13 @@
 import { createCommanderAutopilot, initialFromBotId, type Autopilot } from "./autopilot.ts";
+import { createBot } from "../bots/index.ts";
 import {
   claimHost,
   getState,
   markApplied,
   publishState,
   pullCommands,
+  saveHostToken,
+  volunteerHost,
 } from "./client.ts";
 import { parseCommand } from "./parse.ts";
 import { actionLabel, publicFromMatch, pushMove } from "./summary.ts";
@@ -69,6 +72,14 @@ function require2d(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
   return ctx;
 }
 
+function underlyingBot(botId: string) {
+  try {
+    return createBot(botId);
+  } catch {
+    return undefined;
+  }
+}
+
 export async function startHost(
   canvas: HTMLCanvasElement,
   meta: LiveMeta,
@@ -86,11 +97,13 @@ export async function startHost(
     id: "p1-commander",
     name: claimed.p1.controller,
     initial: initialFromBotId(claimed.p1.bot),
+    underlying: underlyingBot(claimed.p1.bot),
   });
   const p2 = createCommanderAutopilot({
     id: "p2-commander",
     name: claimed.p2.controller,
     initial: initialFromBotId(claimed.p2.bot),
+    underlying: underlyingBot(claimed.p2.bot),
   });
   const match = createMatch({
     seed: claimed.seed,
@@ -253,8 +266,12 @@ export async function startHost(
             }
           }
         })
-        .catch(() => {
-          /* next poll */
+        .catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : "";
+          if (/invalid host|unauthorized|401/i.test(msg)) {
+            stopped = true;
+            hooks.onLog("Host lease lost — this tab is no longer in control.", "warn");
+          }
         });
       if (pendingMarks.length) {
         const batch = pendingMarks.splice(0, pendingMarks.length);
@@ -263,9 +280,15 @@ export async function startHost(
         }
       }
     }
-    if (now - lastPublish > 120 && pub) {
+    if (now - lastPublish > 250 && pub) {
       lastPublish = now;
-      void publishState(meta.id, hostToken, pub).catch(() => undefined);
+      void publishState(meta.id, hostToken, pub).catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : "";
+        if (/invalid host|unauthorized|401/i.test(msg)) {
+          stopped = true;
+          hooks.onLog("Host lease lost — this tab is no longer in control.", "warn");
+        }
+      });
     }
   }
   requestAnimationFrame(frame);
@@ -286,12 +309,16 @@ export function startSpectator(
   hooks: {
     onPublic: (s: MatchPublicState) => void;
     onStatus: (text: string) => void;
+    onLog?: (text: string, kind: string) => void;
+    onBecameHost?: () => void;
   },
-): { stop: () => void; isHost: false } {
+): { stop: () => void; isHost: boolean } {
   const ctx = require2d(canvas);
   resizeCanvas(canvas);
   let stopped = false;
   let last: MatchPublicState | null = null;
+  let promoting = false;
+  let hostHandle: HostHandle | null = null;
 
   function paint(s: MatchPublicState): void {
     renderSpectatorFrame(ctx, {
@@ -303,9 +330,36 @@ export function startSpectator(
   }
 
   async function poll(): Promise<void> {
-    if (stopped) return;
+    if (stopped || hostHandle) return;
     try {
       const r = await getState(id);
+      if (!r.hostPresent && !promoting && !r.state?.over) {
+        promoting = true;
+        try {
+          const v = await volunteerHost(id);
+          saveHostToken(id, v.volunteerToken);
+          hooks.onStatus("This tab volunteered as host — running the fight.");
+          hooks.onLog?.("Volunteer host claimed. Autopilot is running in this tab.", "host");
+          hostHandle = await startHost(
+            canvas,
+            { id, seed: v.seed, window: (v.window === "3s" || v.window === "5s" ? v.window : "off"), p1: v.p1, p2: v.p2 },
+            v.volunteerToken,
+            {
+              onPublic: hooks.onPublic,
+              onLog: (text, kind) => hooks.onLog?.(text, kind),
+            },
+          );
+          hooks.onBecameHost?.();
+          hooks.onStatus("Live host (volunteer) · commanders can send plans now.");
+          return;
+        } catch (err) {
+          promoting = false;
+          const msg = err instanceof Error ? err.message : "";
+          if (!/already active|409/i.test(msg)) {
+            hooks.onStatus(msg || "could not volunteer as host");
+          }
+        }
+      }
       if (r.state) {
         last = r.state;
         hooks.onPublic(r.state);
@@ -331,9 +385,12 @@ export function startSpectator(
   requestAnimationFrame(loop);
 
   return {
-    isHost: false,
+    get isHost() {
+      return !!hostHandle;
+    },
     stop() {
       stopped = true;
+      hostHandle?.stop();
     },
   };
 }

@@ -38,6 +38,8 @@ export interface AutopilotOpts {
   id?: string;
   name?: string;
   initial?: PartialDirective;
+  /** The AI's own bot. Used until a stance/spacing/aggression command arrives. */
+  underlying?: Bot;
 }
 
 function inRange(obs: Observation, kind: "light" | "heavy" | "special"): boolean {
@@ -252,6 +254,10 @@ export function stanceFromBotId(botId: string): Stance {
       return "bait";
     case "statue":
       return "turtle";
+    case "lumi":
+      return "rush";
+    case "gpt6":
+      return "zone";
     default:
       return "zone";
   }
@@ -275,17 +281,24 @@ export function createCommanderAutopilot(opts: AutopilotOpts = {}): Autopilot {
   let pendingGoFor: GoFor = directive.goFor;
   const id = opts.id ?? "commander";
   const name = opts.name ?? "Commander";
+  const underlying = opts.underlying;
+  // Stay on the AI's own bot until a plan (stance/spacing/aggression) is sent.
+  let preferUnderlying = !!underlying;
 
   const bot: Autopilot = {
     id,
     name,
-    start(_ctx: BotStartContext) {
+    start(ctx: BotStartContext) {
       pendingGoFor = directive.goFor;
+      underlying?.start?.(ctx);
     },
     setCommand(partial: PartialDirective, tick: number): CommanderDirective {
       directive = mergeDirective(directive, partial);
       lastAppliedTick = tick;
       pendingGoFor = directive.goFor;
+      if (partial.stance != null || partial.spacing != null || partial.aggression != null) {
+        preferUnderlying = false;
+      }
       return directive;
     },
     getDirective() {
@@ -304,6 +317,10 @@ export function createCommanderAutopilot(opts: AutopilotOpts = {}): Autopilot {
       if (obs.phase !== "fight") return neutral();
       if (obs.me.state === "attack") return neutral();
       if (obs.me.hitstun > 0) return neutral();
+
+      if (preferUnderlying && underlying && pendingGoFor === "none") {
+        return underlying.act(obs);
+      }
 
       if (pendingGoFor !== "none") {
         const go = tryGoFor(obs, pendingGoFor);

@@ -106,6 +106,19 @@ export async function claimHost(id: string, hostToken: string): Promise<{
   });
 }
 
+export async function volunteerHost(id: string): Promise<{
+  ok: boolean;
+  id: string;
+  seed: number;
+  window: string;
+  volunteer: boolean;
+  volunteerToken: string;
+  p1: { controller: string; character: string; bot: string };
+  p2: { controller: string; character: string; bot: string };
+}> {
+  return apiJson(`/api/match/${encodeURIComponent(id)}/volunteer`, { method: "POST", body: "{}" });
+}
+
 export async function pullCommands(id: string, hostToken: string, since: number): Promise<CommandRecord[]> {
   const r = await apiJson<{ commands: CommandRecord[] }>(
     `/api/match/${encodeURIComponent(id)}/commands?since=${since}`,

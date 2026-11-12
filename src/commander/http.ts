@@ -128,6 +128,9 @@ export async function handleApi(req: ApiRequest, store: MatchStore, nowMs = Date
     if (verb === "host" && req.method === "POST") {
       return await handleClaim(req, store, id, nowMs);
     }
+    if (verb === "volunteer" && req.method === "POST") {
+      return await handleVolunteer(req, store, id, nowMs);
+    }
     if (verb === "applied" && req.method === "POST") {
       return await handleApplied(req, store, id, nowMs);
     }
@@ -299,3 +302,21 @@ async function handleApplied(
   return json(200, { ok: true });
 }
 
+
+async function handleVolunteer(
+  _req: ApiRequest, store: MatchStore, id: string, nowMs: number,
+): Promise<ApiResponse> {
+  const result = await store.volunteerHost(id, nowMs);
+  const m = result.record;
+  return json(200, {
+    ok: true,
+    id: m.id,
+    seed: m.seed,
+    window: m.windowMode,
+    volunteer: true,
+    // Lease shown once to this caller; it is a short-lived host token, not a join code.
+    volunteerToken: result.token,
+    p1: { controller: m.p1Controller, character: m.p1Character, bot: m.p1Bot },
+    p2: { controller: m.p2Controller, character: m.p2Character, bot: m.p2Bot },
+  });
+}

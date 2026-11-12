@@ -223,3 +223,50 @@ describe("commander HTTP API", () => {
     expect(parseCommand("STANCE zone").ok).toBe(true);
   });
 });
+
+  it("lets a spectator volunteer as host when none is active, and rejects a second volunteer", async () => {
+    const store = new MemoryStore();
+    const created = await call(store, req({ method: "POST", path: "/api/match", body: { seed: 21, window: "off" } }));
+    const { id, secrets } = created.body as { id: string; secrets: { hostToken: string } };
+    const first = await call(store, req({ method: "POST", path: `/api/match/${id}/volunteer` }));
+    expect(first.status).toBe(200);
+    const body = first.body as { volunteerToken: string; volunteer: boolean; seed: number };
+    expect(body.volunteer).toBe(true);
+    expect(body.volunteerToken).toBeTruthy();
+    expect(body.volunteerToken).not.toBe(secrets.hostToken);
+    const second = await call(store, req({ method: "POST", path: `/api/match/${id}/volunteer` }));
+    expect(second.status).toBe(409);
+    // Volunteer can pull and publish.
+    const pulled = await call(store, req({
+      method: "GET",
+      path: `/api/match/${id}/commands`,
+      headers: { authorization: `Bearer ${body.volunteerToken}` },
+    }));
+    expect(pulled.status).toBe(200);
+    // After the host goes stale, a new volunteer is allowed.
+    const later = 1_000_000 + 20_000;
+    const third = await call(store, req({ method: "POST", path: `/api/match/${id}/volunteer` }), later);
+    expect(third.status).toBe(200);
+    const newTok = (third.body as { volunteerToken: string }).volunteerToken;
+    expect(newTok).not.toBe(body.volunteerToken);
+    // Old lease is revoked.
+    const stale = await call(store, req({
+      method: "GET",
+      path: `/api/match/${id}/commands`,
+      headers: { authorization: `Bearer ${body.volunteerToken}` },
+    }), later);
+    expect(stale.status).toBe(401);
+    // Original host token can reclaim and revoke the volunteer.
+    const reclaim = await call(store, req({
+      method: "POST",
+      path: `/api/match/${id}/host`,
+      body: { hostToken: secrets.hostToken },
+    }), later);
+    expect(reclaim.status).toBe(200);
+    const volAfter = await call(store, req({
+      method: "GET",
+      path: `/api/match/${id}/commands`,
+      headers: { authorization: `Bearer ${newTok}` },
+    }), later + 10);
+    expect(volAfter.status).toBe(401);
+  });

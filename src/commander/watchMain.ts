@@ -248,6 +248,11 @@ function openArena(id: string): void {
       statusEl.textContent = text;
       statusEl.classList.toggle("warn", /wait/i.test(text) || /lost/i.test(text));
     },
+    onLog: logLine,
+    onBecameHost() {
+      statusEl.textContent = "Live host (volunteer) · commanders can send plans now.";
+      statusEl.classList.remove("warn");
+    },
   });
 }
 
