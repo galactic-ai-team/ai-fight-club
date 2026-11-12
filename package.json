@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "ladder": "npx tsx scripts/run-ladder.ts",
     "commander": "npx tsx scripts/commander.ts",
+    "eyes:pov": "npx tsx scripts/pov-frame.ts",
     "build:api": "node scripts/build-api.mjs"
   },
   "devDependencies": {
