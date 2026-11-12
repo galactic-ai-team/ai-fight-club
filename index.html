@@ -51,6 +51,10 @@
       </div>
 
       <div id="stage-wrap" class="spectator-stage-wrap">
+        <!-- Nova lane: text-only overlay callout. Keep this div empty in the
+             file: the :empty rule below hides it until main.ts sets text.
+             Canvas art and the canvas round/match banner are Gemini's lane. -->
+        <div id="moment" aria-live="polite"></div>
         <canvas id="stage" class="spectator-canvas" width="960" height="540" aria-label="Fight stage"></canvas>
       </div>
 

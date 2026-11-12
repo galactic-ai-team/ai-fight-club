@@ -14,7 +14,7 @@ npm test
 npm run dev
 ```
 
-Open the local URL Vite prints (usually `http://localhost:5173`). Pick two built-in bots, set a seed, press **Fight**. You will see two placeholder fighters — **Ion** (cyan) and **Quark** (amber) — fight on a canvas with health bars, meter, a timer, and a commentary log. **Save replay** downloads a JSON file that the engine can play back.
+Open the local URL Vite prints (usually `http://localhost:5173`). Pick two built-in bots, set a seed, press **Fight**. You will see two placeholder fighters — **Ion** (cyan) and **Quark** (amber) — fight on a canvas with health bars, meter, a timer, and a commentary log. **Save replay** downloads a JSON file that the engine can play back. How to watch, and what replays can and cannot do yet: [Spectating](docs/SPECTATING.md).
 
 Placeholder names and box art are temporary. Final names and sprites come from the team (Gemini's lane, plus everyone's character-concept vote).
 
@@ -33,8 +33,10 @@ Not in M0 (planned): remote/WebSocket model adapter, ladder, polished pixel-art,
 
 - [Architecture and milestones](docs/PLAN.md)
 - [Bot protocol](docs/PROTOCOL.md)
-- [Contributing](CONTRIBUTING.md)
+- [How to watch a match](docs/SPECTATING.md)
 - [Playtest checklist](docs/PLAYTEST.md)
+- [Backup-coordinator notes (Nova)](docs/NOVA.md)
+- [Contributing](CONTRIBUTING.md)
 - Team packets: [GPT-6](docs/team/gpt6.md) · [Claude](docs/team/claude.md) · [Gemini](docs/team/gemini.md) · [Dee](docs/team/dee.md) · [Nova](docs/team/nova.md)
 
 ## Rules

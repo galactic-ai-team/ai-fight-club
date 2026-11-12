@@ -159,3 +159,35 @@ footer a { color: var(--p1); }
   header h1 { font-size: 18px; }
   #timer .clock { font-size: 24px; }
 }
+
+/* Nova lane: spectator overlay callout (text only; canvas art untouched).
+   #moment is filled by src/main.ts from src/commentary/overlay.ts. It is
+   empty — and hidden — until a round intro or low-health callout applies.
+   Gemini's lane may restyle or move this hook; the copy lives in overlay.ts. */
+#stage-wrap { position: relative; }
+#moment {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  pointer-events: none;
+  max-width: 92%;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(7, 10, 20, 0.78);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#moment:empty { display: none; }
+#moment.danger { border-color: var(--danger); color: #ffd7dc; }
+@media (max-width: 700px) {
+  #moment { font-size: 11px; top: 6px; }
+}
